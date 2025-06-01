@@ -24,12 +24,27 @@ function App() {
   const [selectedModel, setSelectedModel] = useState('');
   
   // New state variables for blog customization
-  const [targetAudience, setTargetAudience] = useState('general audience');
+  const [targetAudience, setTargetAudience] = useState('general');
   const [tone, setTone] = useState('professional');
-  const [numSections, setNumSections] = useState(3);
+  const [numSections, setNumSections] = useState(5);
   
   // Auto-scroll control
-  const [autoScroll, setAutoScroll] = useState(false);
+  const [autoScroll, setAutoScroll] = useState(true);
+  
+  // Add image generation state variables
+  const [generatedImages, setGeneratedImages] = useState([]);
+  const [isGeneratingImages, setIsGeneratingImages] = useState(false);
+  const [showImageSidebar, setShowImageSidebar] = useState(true);
+  const [draggedImage, setDraggedImage] = useState(null);
+  const [blogSections, setBlogSections] = useState([]);
+  const [selectedSections, setSelectedSections] = useState(new Set());
+  const [isDragging, setIsDragging] = useState(false);
+  const [dropZones, setDropZones] = useState([]);
+  
+  // Add Google Images search state variables
+  const [googleImages, setGoogleImages] = useState([]);
+  const [isSearchingGoogleImages, setIsSearchingGoogleImages] = useState(false);
+  const [googleSearchQuery, setGoogleSearchQuery] = useState('');
   
   const messagesEndRef = useRef(null);
 
@@ -39,7 +54,7 @@ function App() {
       try {
         const apiUrl = process.env.NODE_ENV === 'production' 
           ? '/api/models'
-          : 'http://localhost:4008/models';
+          : 'http://localhost:4000/models';
         
         const response = await fetch(apiUrl);
         if (response.ok) {
@@ -96,7 +111,7 @@ function App() {
       // Use different API URLs for development vs production
       const apiUrl = process.env.NODE_ENV === 'production' 
         ? '/api/blog/stream'  // Production: goes through nginx proxy
-        : 'http://localhost:4008/blog/stream';  // Development: direct to backend
+        : 'http://localhost:4000/blog/stream';  // Development: direct to backend
       
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -168,6 +183,409 @@ function App() {
       console.error('Error in streaming:', error);
       onError(error);
     }
+  };
+
+  // Enhanced image generation functions
+  const analyzeBlogSections = (content) => {
+    // Parse HTML content to extract sections
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(content, 'text/html');
+    
+    const sections = [];
+    const headings = doc.querySelectorAll('h1, h2, h3');
+    
+    headings.forEach((heading, index) => {
+      const sectionText = heading.textContent;
+      const tagName = heading.tagName.toLowerCase();
+      
+      // Get content after this heading until next heading
+      let nextSibling = heading.nextElementSibling;
+      let sectionContent = '';
+      
+      while (nextSibling && !['H1', 'H2', 'H3'].includes(nextSibling.tagName)) {
+        sectionContent += nextSibling.textContent + ' ';
+        nextSibling = nextSibling.nextElementSibling;
+      }
+      
+      sections.push({
+        id: `section-${index}`,
+        title: sectionText,
+        level: tagName,
+        content: sectionContent.trim(),
+        element: heading,
+        selected: false
+      });
+    });
+    
+    return sections;
+  };
+
+  const generateImagesForSelectedSections = async (sections, blogContent) => {
+    setIsGeneratingImages(true);
+    const newImages = [];
+    
+    try {
+      for (const section of sections) {
+        if (!selectedSections.has(section.id)) continue;
+        
+        // Create contextual content for this specific section
+        const sectionContext = `
+          Section Title: ${section.title}
+          Section Content: ${section.content}
+          
+          Full Blog Context: ${blogContent.substring(0, 1000)}...
+        `;
+        
+        const apiUrl = process.env.NODE_ENV === 'production' 
+          ? '/api/blog/suggest-images'
+          : 'http://localhost:4000/blog/suggest-images';
+        
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            content: sectionContext,
+            section_title: section.title,
+            style: 'professional'
+          }),
+        });
+
+        if (!response.ok) {
+          console.error(`Failed to get suggestions for section: ${section.title}`);
+          continue;
+        }
+
+        const data = await response.json();
+        
+        // Generate actual image for the first suggestion
+        if (data.suggestions && data.suggestions.length > 0) {
+          const suggestion = data.suggestions[0];
+          
+          try {
+            const imageApiUrl = process.env.NODE_ENV === 'production' 
+              ? '/api/blog/generate-image'
+              : 'http://localhost:4000/blog/generate-image';
+            
+            const imageResponse = await fetch(imageApiUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ 
+                content: sectionContext,
+                section_title: section.title,
+                style: 'professional',
+                size: '1024x1024'
+              }),
+            });
+
+            if (imageResponse.ok) {
+              const imageData = await imageResponse.json();
+              
+              console.log(`Generated contextual image for "${section.title}":`, imageData.enhanced_prompt);
+              
+              newImages.push({
+                id: `img-${Date.now()}-${section.id}`,
+                url: imageData.image.url,
+                base64: imageData.base64_image,
+                prompt: imageData.enhanced_prompt || suggestion.prompt,
+                description: suggestion.description,
+                sectionId: section.id,
+                sectionTitle: section.title,
+                placement: suggestion.placement || 'after-heading',
+                timestamp: new Date(),
+                contextual: true // Mark as contextually generated
+              });
+            } else {
+              console.error(`Failed to generate image for section: ${section.title}`);
+            }
+          } catch (error) {
+            console.error('Failed to generate image for section:', section.title, error);
+          }
+        }
+      }
+      
+      setGeneratedImages(prev => [...prev, ...newImages]);
+      if (newImages.length > 0) {
+        setShowImageSidebar(true);
+        
+        // Show success message with details
+        const successMessage = {
+          id: Date.now(),
+          type: 'system',
+          content: `🎨 Generated ${newImages.length} contextual images for selected sections: ${newImages.map(img => img.sectionTitle).join(', ')}`,
+          timestamp: new Date()
+        };
+        
+        setTimeout(() => {
+          setMessages(prev => [...prev, successMessage]);
+        }, 1000);
+      }
+      
+    } catch (error) {
+      console.error('Error generating contextual images:', error);
+      
+      // Show error message
+      const errorMessage = {
+        id: Date.now(),
+        type: 'system',
+        content: '❌ Failed to generate contextual images. Please try again.',
+        timestamp: new Date()
+      };
+      
+      setTimeout(() => {
+        setMessages(prev => [...prev, errorMessage]);
+      }, 500);
+    } finally {
+      setIsGeneratingImages(false);
+    }
+  };
+
+  // Google Images search functions
+  const searchGoogleImages = async (query, numResults = 10) => {
+    setIsSearchingGoogleImages(true);
+    try {
+      const apiUrl = process.env.NODE_ENV === 'production' 
+        ? '/api/blog/search-google-images'
+        : 'http://localhost:4000/blog/search-google-images';
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: query,
+          num_results: numResults
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setGoogleImages(data.results || []);
+      return data;
+    } catch (error) {
+      console.error('Error searching Google Images:', error);
+      alert('Failed to search Google Images. Please check your API configuration.');
+      return { results: [] };
+    } finally {
+      setIsSearchingGoogleImages(false);
+    }
+  };
+
+  const searchImagesForAllSections = async () => {
+    if (blogSections.length === 0) {
+      alert('No blog sections available. Generate a blog first!');
+      return;
+    }
+
+    setIsSearchingGoogleImages(true);
+    try {
+      const sectionsData = blogSections.map(section => ({
+        title: section.title,
+        content: section.content || ''
+      }));
+
+      const apiUrl = process.env.NODE_ENV === 'production' 
+        ? '/api/blog/search-images-for-sections'
+        : 'http://localhost:4000/blog/search-images-for-sections';
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sections: sectionsData
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // Flatten all images from all sections
+      const allImages = [];
+      Object.entries(data.results || {}).forEach(([sectionTitle, sectionData]) => {
+        sectionData.images.forEach((image, index) => {
+          allImages.push({
+            ...image,
+            id: `google-${sectionTitle}-${index}`,
+            sectionTitle: sectionTitle,
+            query: sectionData.query,
+            source: 'google'
+          });
+        });
+      });
+
+      setGoogleImages(allImages);
+      return data;
+    } catch (error) {
+      console.error('Error searching images for sections:', error);
+      alert('Failed to search images for sections. Please check your API configuration.');
+    } finally {
+      setIsSearchingGoogleImages(false);
+    }
+  };
+
+  // Enhanced drag and drop handlers
+  const handleDragStart = (e, image) => {
+    console.log('Drag started:', image);
+    setDraggedImage(image);
+    setIsDragging(true);
+    e.dataTransfer.setData('text/plain', '');
+    e.dataTransfer.effectAllowed = 'copy';
+    
+    // Add visual feedback
+    setTimeout(() => {
+      document.querySelectorAll('.drop-zone').forEach(zone => {
+        zone.classList.add('drag-active');
+      });
+    }, 0);
+  };
+
+  const handleDragEnd = () => {
+    console.log('Drag ended');
+    setIsDragging(false);
+    setDraggedImage(null);
+    
+    // Remove visual feedback
+    document.querySelectorAll('.drop-zone').forEach(zone => {
+      zone.classList.remove('drag-active', 'drag-over');
+    });
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    e.currentTarget.classList.add('drag-over');
+  };
+
+  const handleDragLeave = (e) => {
+    e.currentTarget.classList.remove('drag-over');
+  };
+
+  const handleDrop = (e, messageId, dropZone = null) => {
+    console.log('Drop event:', { messageId, dropZone, draggedImage });
+    e.preventDefault();
+    e.currentTarget.classList.remove('drag-over');
+    
+    if (!draggedImage) {
+      console.log('No dragged image found');
+      return;
+    }
+    
+    // Find the message and add the image at the right location
+    setMessages(prev => prev.map(msg => {
+      if (msg.id === messageId && msg.type === 'bot') {
+        let updatedContent = msg.content;
+        
+        const imageHtml = `
+          <div class="blog-image" style="margin: 20px 0; text-align: center;">
+            <img src="${draggedImage.url}" alt="${draggedImage.description}" style="max-width: 100%; height: auto; border-radius: 12px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);" />
+            <p style="margin-top: 8px; color: #64748b; font-size: 0.9rem; font-style: italic;">${draggedImage.description}</p>
+          </div>
+        `;
+        
+        if (dropZone) {
+          // Parse the HTML content
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(updatedContent, 'text/html');
+          const elements = Array.from(doc.body.children);
+          
+          if (dropZone === 'beginning-of-content') {
+            // Insert at the very beginning
+            if (doc.body.firstChild) {
+              doc.body.insertAdjacentHTML('afterbegin', imageHtml);
+            } else {
+              doc.body.innerHTML = imageHtml;
+            }
+            updatedContent = doc.body.innerHTML;
+            
+          } else if (dropZone === 'end-of-content') {
+            // Insert at the very end
+            doc.body.insertAdjacentHTML('beforeend', imageHtml);
+            updatedContent = doc.body.innerHTML;
+            
+          } else if (dropZone.startsWith('before-section-')) {
+            // Insert before a specific section
+            const sectionIndex = parseInt(dropZone.split('-')[2]);
+            let headingCount = 0;
+            
+            for (let i = 0; i < elements.length; i++) {
+              const element = elements[i];
+              if (['H1', 'H2', 'H3', 'H4', 'H5', 'H6'].includes(element.tagName)) {
+                if (headingCount === sectionIndex) {
+                  element.insertAdjacentHTML('beforebegin', imageHtml);
+                  break;
+                }
+                headingCount++;
+              }
+            }
+            updatedContent = doc.body.innerHTML;
+            
+          } else if (dropZone.startsWith('after-section-')) {
+            // Insert after a specific section (after its content, before next heading)
+            const sectionIndex = parseInt(dropZone.split('-')[2]);
+            let headingCount = 0;
+            
+            for (let i = 0; i < elements.length; i++) {
+              const element = elements[i];
+              if (['H1', 'H2', 'H3', 'H4', 'H5', 'H6'].includes(element.tagName)) {
+                if (headingCount === sectionIndex) {
+                  // Find the end of this section (before next heading or end of content)
+                  let insertAfter = element;
+                  for (let j = i + 1; j < elements.length; j++) {
+                    const nextElement = elements[j];
+                    if (['H1', 'H2', 'H3', 'H4', 'H5', 'H6'].includes(nextElement.tagName)) {
+                      break; // Found next heading, insert before it
+                    }
+                    insertAfter = nextElement; // Keep track of last non-heading element
+                  }
+                  insertAfter.insertAdjacentHTML('afterend', imageHtml);
+                  break;
+                }
+                headingCount++;
+              }
+            }
+            updatedContent = doc.body.innerHTML;
+          }
+        } else {
+          // Fallback: append to end
+          updatedContent = msg.content + imageHtml;
+        }
+        
+        return {
+          ...msg,
+          content: updatedContent
+        };
+      }
+      return msg;
+    }));
+    
+    // Store description before clearing
+    const imageDescription = draggedImage.description;
+    setDraggedImage(null);
+    setIsDragging(false);
+    
+    // Show success feedback
+    const successMessage = {
+      id: Date.now(),
+      type: 'system',
+      content: `✅ Image "${imageDescription}" added to blog at ${dropZone || 'end'}!`,
+      timestamp: new Date()
+    };
+    
+    setTimeout(() => {
+      setMessages(prev => [...prev, successMessage]);
+    }, 500);
   };
 
   const handleSubmit = async (e) => {
@@ -245,6 +663,13 @@ function App() {
         return msg;
       }));
       setIsLoading(false);
+      
+      // Analyze blog sections for image generation
+      if (finalData.content) {
+        const sections = analyzeBlogSections(finalData.content);
+        setBlogSections(sections);
+        setSelectedSections(new Set()); // Reset selection
+      }
     };
 
     const onError = (error) => {
@@ -271,16 +696,129 @@ function App() {
     }
   };
 
-  const formatContent = (content, format = 'HTML') => {
-    console.log('Formatting content:', { format, contentLength: content?.length, contentPreview: content?.substring(0, 100) });
+  const formatContent = (content, format = 'HTML', messageId = null) => {
+    console.log('Formatting content:', { format, contentLength: content?.length, contentPreview: content?.substring(0, 100), messageId, isDragging });
     
     if (format === 'HTML') {
-      // For HTML content, render it directly
+      // Parse HTML content to identify sections and add drop zones
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(content, 'text/html');
+      const elements = Array.from(doc.body.children);
+      
+      console.log('Parsed elements:', elements.length, 'isDragging:', isDragging, 'messageId:', messageId);
+      
+      const renderElements = () => {
+        const result = [];
+        let sectionIndex = 0;
+        
+        elements.forEach((element, index) => {
+          const isHeading = ['H1', 'H2', 'H3', 'H4', 'H5', 'H6'].includes(element.tagName);
+          
+          // Add drop zone before each section (at the beginning of headings)
+          if (isHeading && isDragging && messageId) {
+            console.log('Adding drop zone before section', sectionIndex, 'at element', index);
+            result.push(
+              <div 
+                key={`drop-before-${index}`}
+                className="drop-zone section-drop-zone"
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, messageId, `before-section-${sectionIndex}`)}
+              >
+                <div className="drop-zone-content">
+                  <span className="drop-icon">📍</span>
+                  <span className="drop-text">Drop image before section</span>
+                </div>
+              </div>
+            );
+          }
+          
+          // Render the actual element
+          result.push(
+            <div 
+              key={`element-${index}`}
+              dangerouslySetInnerHTML={{ __html: element.outerHTML }}
+            />
+          );
+          
+          // Add drop zone after each section (at the end of sections)
+          if (isHeading && isDragging && messageId) {
+            // Look ahead to see if there's content after this heading before the next heading
+            let hasContentAfter = false;
+            for (let i = index + 1; i < elements.length; i++) {
+              const nextElement = elements[i];
+              if (['H1', 'H2', 'H3', 'H4', 'H5', 'H6'].includes(nextElement.tagName)) {
+                break; // Found next heading
+              }
+              if (nextElement.textContent.trim()) {
+                hasContentAfter = true;
+                break;
+              }
+            }
+            
+            // If this is the last element or next element is a heading, add drop zone after
+            if (index === elements.length - 1 || 
+                (index + 1 < elements.length && ['H1', 'H2', 'H3', 'H4', 'H5', 'H6'].includes(elements[index + 1].tagName))) {
+              result.push(
+                <div 
+                  key={`drop-after-${index}`}
+                  className="drop-zone section-drop-zone"
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, messageId, `after-section-${sectionIndex}`)}
+                >
+                  <div className="drop-zone-content">
+                    <span className="drop-icon">📍</span>
+                    <span className="drop-text">Drop image after section</span>
+                  </div>
+                </div>
+              );
+            }
+            
+            sectionIndex++;
+          }
+          
+          // For non-heading elements, add drop zone after if it's the last element
+          if (!isHeading && index === elements.length - 1 && isDragging && messageId) {
+            result.push(
+              <div 
+                key={`drop-end-${index}`}
+                className="drop-zone section-drop-zone"
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, messageId, `end-of-content`)}
+              >
+                <div className="drop-zone-content">
+                  <span className="drop-icon">🖼️</span>
+                  <span className="drop-text">Drop image at end of blog</span>
+                </div>
+              </div>
+            );
+          }
+        });
+        
+        return result;
+      };
+      
       return (
-        <div 
-          className="html-blog-content"
-          dangerouslySetInnerHTML={{ __html: content }}
-        />
+        <div className={`html-blog-content ${isDragging ? 'dragging-active' : ''}`}>
+          {/* Add drop zone at the very beginning */}
+          {isDragging && messageId && (
+            <div 
+              className="drop-zone section-drop-zone beginning-drop"
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, messageId, 'beginning-of-content')}
+            >
+              <div className="drop-zone-content">
+                <span className="drop-icon">🎯</span>
+                <span className="drop-text">Drop image at beginning of blog</span>
+              </div>
+            </div>
+          )}
+          
+          {renderElements()}
+        </div>
       );
     } else {
       // Fallback: Simple markdown-like formatting for non-HTML content
@@ -453,7 +991,6 @@ function App() {
 
   // Reset to landing page
   const resetToLandingPage = () => {
-    localStorage.removeItem('completedLanding');
     setShowLandingPage(true);
     setMessages([
       {
@@ -469,6 +1006,238 @@ function App() {
   if (showLandingPage) {
     return <LandingPage onComplete={handleLandingComplete} />;
   }
+
+  // Enhanced Image Sidebar Component
+  const ImageSidebar = () => {
+    return (
+      <div className={`image-sidebar ${showImageSidebar ? 'open' : ''}`}>
+        <div className="sidebar-header">
+          <h3>🎨 AI Images</h3>
+          <div className="sidebar-controls">
+            <button 
+              onClick={() => setShowImageSidebar(!showImageSidebar)}
+              className="toggle-sidebar-btn"
+            >
+              {showImageSidebar ? '→' : '←'}
+            </button>
+          </div>
+        </div>
+        
+        {/* Google Images Search Section */}
+        <div className="google-search-section">
+          <h4>🔍 Google Images Search</h4>
+          <div className="search-controls">
+            <div className="search-input-group">
+              <input
+                type="text"
+                placeholder="Search for images..."
+                value={googleSearchQuery}
+                onChange={(e) => setGoogleSearchQuery(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && googleSearchQuery.trim()) {
+                    searchGoogleImages(googleSearchQuery.trim());
+                  }
+                }}
+                className="google-search-input"
+              />
+              <button
+                onClick={() => googleSearchQuery.trim() && searchGoogleImages(googleSearchQuery.trim())}
+                disabled={isSearchingGoogleImages || !googleSearchQuery.trim()}
+                className="search-btn"
+              >
+                {isSearchingGoogleImages ? '⏳' : '🔍'}
+              </button>
+            </div>
+            <button
+              onClick={searchImagesForAllSections}
+              disabled={isSearchingGoogleImages || blogSections.length === 0}
+              className="auto-search-btn"
+            >
+              {isSearchingGoogleImages ? (
+                <>
+                  <span className="spinner"></span>
+                  Searching...
+                </>
+              ) : (
+                <>
+                  🤖 Auto-search for sections
+                </>
+              )}
+            </button>
+          </div>
+          
+          {/* Google Images Results */}
+          {googleImages.length > 0 && (
+            <div className="google-images-section">
+              <h5>📸 Google Images ({googleImages.length})</h5>
+              <div className="images-grid google-images">
+                {googleImages.map((image) => (
+                  <div
+                    key={image.id}
+                    className="image-item google-image"
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, {
+                      ...image,
+                      url: image.link,
+                      description: image.title,
+                      placement: 'inline'
+                    })}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <div className="image-preview">
+                      <img 
+                        src={image.thumbnail || image.link} 
+                        alt={image.title}
+                        onError={(e) => {
+                          e.target.src = image.link; // Fallback to full image if thumbnail fails
+                        }}
+                      />
+                      <div className="image-overlay">
+                        <span className="drag-hint">🖱️ Drag to blog</span>
+                      </div>
+                    </div>
+                    <div className="image-info">
+                      <p className="image-description">{image.title}</p>
+                      {image.sectionTitle && (
+                        <span className="section-tag">📍 {image.sectionTitle}</span>
+                      )}
+                      {image.query && (
+                        <span className="query-tag">🔍 {image.query}</span>
+                      )}
+                      <span className="source-tag">🌐 Google</span>
+                      <div className="image-dimensions">
+                        {image.width && image.height && (
+                          <span>{image.width}×{image.height}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Google Custom Search Widget */}
+        <div className="google-custom-search-section">
+          <h4>🌐 Google Custom Search</h4>
+          <p className="search-widget-description">
+            Use Google's search widget to find and drag images directly:
+          </p>
+          <div className="custom-search-container">
+            <div className="gcse-search" data-resultsUrl="/search-results" data-newWindow="true"></div>
+          </div>
+          <p className="search-widget-note">
+            💡 Tip: Right-click images from search results and drag them to your blog!
+          </p>
+        </div>
+
+        {/* Existing DALL-E Section */}
+        <div className="section-selector">
+          <h4>🎨 Generate DALL-E Images</h4>
+          {blogSections.length > 0 ? (
+            <>
+              <p className="section-description">Select blog sections to generate contextual images:</p>
+              <div className="sections-list">
+                {blogSections.map((section) => (
+                  <label key={section.id} className="section-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={selectedSections.has(section.id)}
+                      onChange={(e) => {
+                        const newSelected = new Set(selectedSections);
+                        if (e.target.checked) {
+                          newSelected.add(section.id);
+                        } else {
+                          newSelected.delete(section.id);
+                        }
+                        setSelectedSections(newSelected);
+                      }}
+                    />
+                    <span className="section-title">{section.title}</span>
+                    <span className="section-level">{section.level}</span>
+                  </label>
+                ))}
+              </div>
+              <button
+                className="generate-selected-btn"
+                onClick={() => generateImagesForSelectedSections(
+                  blogSections.filter(s => selectedSections.has(s.id)),
+                  messages.find(m => m.isComplete) && messages.find(m => m.isComplete).content
+                )}
+                disabled={selectedSections.size === 0 || isGeneratingImages}
+              >
+                {isGeneratingImages ? (
+                  <>
+                    <span className="spinner"></span>
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    🎨 Generate DALL-E Images ({selectedSections.size})
+                  </>
+                )}
+              </button>
+            </>
+          ) : (
+            <div className="no-blog-message">
+              <p>📝 Generate a blog first to create contextual DALL-E images for specific sections.</p>
+              <p>💡 Or use Google Images search above to find existing images!</p>
+            </div>
+          )}
+        </div>
+
+        {isGeneratingImages && (
+          <div className="generating-status">
+            <div className="loading-spinner"></div>
+            <p>🎨 Creating images for selected sections...</p>
+          </div>
+        )}
+        
+        <div className="images-grid">
+          {generatedImages.map((image) => (
+            <div
+              key={image.id}
+              className={`image-item ${isDragging && draggedImage && draggedImage.id === image.id ? 'dragging' : ''}`}
+              draggable
+              onDragStart={(e) => handleDragStart(e, image)}
+              onDragEnd={handleDragEnd}
+            >
+              <div className="image-preview">
+                <img src={image.url} alt={image.description} />
+                <div className="image-overlay">
+                  <span className="drag-hint">🖱️ Drag to blog</span>
+                </div>
+              </div>
+              <div className="image-info">
+                <p className="image-description">{image.description}</p>
+                {image.sectionTitle && (
+                  <span className="section-tag">📍 {image.sectionTitle}</span>
+                )}
+                {image.contextual && (
+                  <span className="contextual-tag">🎯 Contextual</span>
+                )}
+                <span className="placement-tag">{image.placement}</span>
+                {image.prompt && (
+                  <details className="prompt-details">
+                    <summary>🎨 DALL-E Prompt</summary>
+                    <p className="prompt-text">{image.prompt}</p>
+                  </details>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        {generatedImages.length === 0 && googleImages.length === 0 && !isGeneratingImages && !isSearchingGoogleImages && blogSections.length === 0 && (
+          <div className="empty-state">
+            <p>🖼️ No images yet</p>
+            <p>Generate a blog or search Google Images!</p>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="App">
@@ -562,7 +1331,19 @@ function App() {
                   {message.type === 'user' ? '👤' : '🤖'}
                 </div>
                 <div className="message-content">
-                  <div className={`message-bubble ${message.isError ? 'error' : ''} ${message.isStreaming ? 'streaming' : ''}`}>
+                  <div 
+                    className={`message-bubble ${message.isError ? 'error' : ''} ${message.isStreaming ? 'streaming' : ''}`}
+                    onDragOver={message.type === 'bot' && message.isComplete ? handleDragOver : undefined}
+                    onDragLeave={message.type === 'bot' && message.isComplete ? handleDragLeave : undefined}
+                    onDrop={message.type === 'bot' && message.isComplete ? (e) => handleDrop(e, message.id) : undefined}
+                  >
+                    {/* Debug info */}
+                    {message.type === 'bot' && (
+                      <div style={{fontSize: '10px', color: '#999', marginBottom: '5px'}}>
+                        Debug: isComplete={String(message.isComplete)}, isDragging={String(isDragging)}, id={message.id}
+                      </div>
+                    )}
+                    
                     {/* Streaming indicator */}
                     {message.isStreaming && (
                       <div className="streaming-indicator">
@@ -588,7 +1369,7 @@ function App() {
                         {/* Blog content */}
                         {message.isComplete ? 
                           <div>
-                            {formatContent(message.content, message.format)}
+                            {formatContent(message.content, message.format, message.id)}
                             {/* Export button for completed blogs */}
                             <div className="export-actions">
                               <button 
@@ -599,7 +1380,8 @@ function App() {
                                 📄 Export HTML
                               </button>
                             </div>
-                          </div> :
+                          </div>
+                          :
                           <div className="streaming-content">
                             <div className="current-thought">
                               {message.content.split('\n').map((line, idx) => (
@@ -682,7 +1464,7 @@ function App() {
                       disabled={isLoading}
                       className="option-select"
                     >
-                      <option value="general audience">General Audience</option>
+                      <option value="general">General</option>
                       <option value="professionals">Professionals</option>
                       <option value="beginners">Beginners</option>
                       <option value="experts">Experts</option>
@@ -804,6 +1586,18 @@ function App() {
           </div>
         </div>
       </footer>
+
+      {/* Image Sidebar */}
+      {/* Floating Sidebar Toggle Button */}
+      <button 
+        className="floating-sidebar-toggle"
+        onClick={() => setShowImageSidebar(!showImageSidebar)}
+        title={showImageSidebar ? "Close Image Sidebar" : "Open Image Sidebar"}
+      >
+        {showImageSidebar ? '🖼️ ×' : '🖼️ ☰'}
+      </button>
+      
+      <ImageSidebar />
     </div>
   );
 }
