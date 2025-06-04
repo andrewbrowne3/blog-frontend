@@ -117,10 +117,16 @@ function App() {
     const fetchModels = async () => {
       try {
         const apiUrl = process.env.NODE_ENV === 'production' 
-          ? 'https://blog.andrewbrowne.org/blog/models'
+          ? 'https://blog.andrewbrowne.org/api/blog/models'
           : 'http://localhost:4000/blog/models';
         
-        const response = await fetch(apiUrl);
+        const response = await fetch(apiUrl, {
+          headers: {
+            ...(authTokens?.access_token && {
+              'Authorization': `Bearer ${authTokens.access_token}`
+            })
+          }
+        });
         if (response.ok) {
           const models = await response.json();
           console.log('Received models:', models);
@@ -143,7 +149,7 @@ function App() {
     };
     
     fetchModels();
-  }, [llmProvider]);
+  }, [llmProvider, authTokens]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -189,30 +195,29 @@ function App() {
   };
 
   const generateBlogStream = async (topic, onStep, onComplete, onError) => {
+    console.log('🚀 Starting streaming request...');
+    
+    const apiUrl = process.env.NODE_ENV === 'production' 
+      ? 'https://blog.andrewbrowne.org/api/blog/stream'
+      : 'http://localhost:4000/blog/stream';
+    
     try {
-      console.log('Starting streaming request for topic:', topic);
-      
-      // Use different API URLs for development vs production
-      const apiUrl = process.env.NODE_ENV === 'production' 
-        ? 'https://blog.andrewbrowne.org/blog/stream'
-        : 'http://localhost:4000/blog/stream';
-      
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'text/event-stream',
-          'Authorization': `Bearer ${authTokens.access_token}`
+          ...(authTokens?.access_token && {
+            'Authorization': `Bearer ${authTokens.access_token}`
+          })
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           topic: topic,
-          html_mode: true,  // Request HTML format
-          llm_provider: llmProvider,  // Use selected LLM provider
-          model_name: selectedModel,  // Use selected model
+          llm_provider: llmProvider,
+          model_name: selectedModel || "gemma3:12b", // Fallback model
+          num_sections: parseInt(numSections),
           target_audience: targetAudience,
-          tone: tone,
-          num_sections: numSections
-        }),
+          tone: tone
+        })
       });
 
       if (!response.ok) {
