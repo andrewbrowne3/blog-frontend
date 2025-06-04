@@ -123,22 +123,42 @@ function App() {
         const response = await fetch(apiUrl);
         if (response.ok) {
           const models = await response.json();
+          console.log('Received models:', models);
+          
+          // Check if models response is valid
+          if (models && (models.local || models.cloud)) {
           setAvailableModels(models);
           
           // Set default model based on provider
-          if (llmProvider === 'local' && models.local.length > 0) {
+            if (llmProvider === 'local' && models.local && models.local.length > 0) {
             setSelectedModel(models.local[0]);
-          } else if (llmProvider === 'cloud' && models.cloud.length > 0) {
+            } else if (llmProvider === 'cloud' && models.cloud && models.cloud.length > 0) {
             setSelectedModel(models.cloud[0]);
           }
+          } else {
+            // Use fallback if response format is unexpected
+            setFallbackModels();
+          }
+        } else {
+          setFallbackModels();
         }
       } catch (error) {
         console.error('Failed to fetch models:', error);
+        setFallbackModels();
       }
     };
     
     fetchModels();
   }, [llmProvider]);
+
+  const setFallbackModels = () => {
+    const fallbackModels = {
+      local: ['llama3.2:3b', 'llama3.1:8b'],
+      cloud: ['claude-3-5-sonnet-20241022', 'gpt-4o']
+    };
+    setAvailableModels(fallbackModels);
+    setSelectedModel(fallbackModels[llmProvider][0]);
+  };
 
   // Update selected model when provider changes
   useEffect(() => {
