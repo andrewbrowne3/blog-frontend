@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import './LandingPage.css';
 
-const LandingPage = ({ onComplete }) => {
+const LandingPage = ({ onComplete, onSwitchToLogin }) => {
   const [showFunnel, setShowFunnel] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState({
@@ -9,6 +9,8 @@ const LandingPage = ({ onComplete }) => {
     name: '',
     email: '',
     company: '',
+    password: '',
+    confirmPassword: '',
     
     // Step 2: Blog Goals
     primaryGoal: '',
@@ -45,7 +47,7 @@ const LandingPage = ({ onComplete }) => {
     {
       title: "Welcome! Let's Get Started",
       subtitle: "Tell us about yourself",
-      fields: ['name', 'email', 'company']
+      fields: ['name', 'email', 'company', 'password', 'confirmPassword']
     },
     {
       title: "What Are Your Blog Goals?",
@@ -117,6 +119,26 @@ const LandingPage = ({ onComplete }) => {
 
   const isStepValid = () => {
     const currentFields = steps[currentStep].fields;
+    
+    // Special validation for step 0 (password step)
+    if (currentStep === 0) {
+      // Check all required fields are filled
+      const basicFieldsValid = currentFields.every(field => {
+        const value = formData[field];
+        if (Array.isArray(value)) {
+          return value.length > 0;
+        }
+        return value && value.trim() !== '';
+      });
+      
+      // Check password requirements
+      const passwordValid = formData.password.length >= 8;
+      const passwordsMatch = formData.password === formData.confirmPassword;
+      
+      return basicFieldsValid && passwordValid && passwordsMatch;
+    }
+    
+    // Default validation for other steps
     return currentFields.every(field => {
       const value = formData[field];
       if (Array.isArray(value)) {
@@ -169,6 +191,41 @@ const LandingPage = ({ onComplete }) => {
                 placeholder="Your company name"
                 required
               />
+            </div>
+            <div className="form-group">
+              <label>Create Password *</label>
+              <input
+                type="password"
+                value={formData.password}
+                onChange={(e) => handleInputChange('password', e.target.value)}
+                placeholder="Create a secure password (min 8 characters)"
+                required
+                minLength="8"
+              />
+              {formData.password && (
+                <div className="password-requirements">
+                  <div className={`requirement ${formData.password.length >= 8 ? 'valid' : 'invalid'}`}>
+                    {formData.password.length >= 8 ? '✅' : '❌'} At least 8 characters
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="form-group">
+              <label>Confirm Password *</label>
+              <input
+                type="password"
+                value={formData.confirmPassword}
+                onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                placeholder="Confirm your password"
+                required
+              />
+              {formData.confirmPassword && (
+                <div className="password-requirements">
+                  <div className={`requirement ${formData.password === formData.confirmPassword ? 'valid' : 'invalid'}`}>
+                    {formData.password === formData.confirmPassword ? '✅' : '❌'} Passwords match
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         );
@@ -571,7 +628,7 @@ const LandingPage = ({ onComplete }) => {
             <a href="#features">Features</a>
             <a href="#how-it-works">How It Works</a>
             <a href="#pricing">Pricing</a>
-            <button className="cta-button" onClick={openFunnel}>Get Started</button>
+                        <button className="cta-button" onClick={openFunnel}>Get Started</button>
           </nav>
         </div>
       </header>
@@ -590,6 +647,14 @@ const LandingPage = ({ onComplete }) => {
                 <button className="cta-button secondary">
                   Watch Demo
                 </button>
+                {onSwitchToLogin && (
+                  <div className="login-prompt">
+                    <span>Already have an account? </span>
+                    <button className="link-button" onClick={onSwitchToLogin}>
+                      Sign In
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="hero-stats">
                 <div className="stat">

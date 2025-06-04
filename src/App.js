@@ -1,8 +1,56 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { 
+  registerUser, 
+  loginUser, 
+  saveQuestionnaireData, 
+  logout,
+  selectUser,
+  selectIsAuthenticated,
+  selectAuthLoading,
+  selectAuthError,
+  clearError
+} from './store/slices/authSlice';
+import useAuthCheck from './hooks/useAuthCheck';
 import './App.css';
 import LandingPage from './LandingPage';
+import LoginPage from './LoginPage';
 
 function App() {
+  // Redux state
+  const dispatch = useDispatch();
+  const user = useSelector(selectUser);
+  const isAuthenticated = useSelector(selectIsAuthenticated);
+  const authLoading = useSelector(selectAuthLoading);
+  const authError = useSelector(selectAuthError);
+  
+  // Use the auth check hook for automatic token validation
+  useAuthCheck();
+
+  // Authentication flow state
+  const [authMode, setAuthMode] = useState(() => {
+    // Check if user has completed questionnaire before
+    const completedLanding = localStorage.getItem('completedLanding');
+    const hasTokens = localStorage.getItem('authTokens');
+    
+    if (isAuthenticated) {
+      return 'app'; // Already authenticated, go to main app
+    } else if (completedLanding && hasTokens) {
+      return 'login'; // Has been here before, show login
+    } else {
+      return 'register'; // New user, show questionnaire
+    }
+  });
+
+  // Local state for UI
+  const [welcomeMessage, setWelcomeMessage] = useState('');
+
+  // Authentication state (keeping for backward compatibility)
+  const [authTokens, setAuthTokens] = useState(() => {
+    const savedTokens = localStorage.getItem('authTokens');
+    return savedTokens ? JSON.parse(savedTokens) : null;
+  });
+
   // Landing page state - check localStorage first
   const [showLandingPage, setShowLandingPage] = useState(() => {
     const saved = localStorage.getItem('completedLanding');
@@ -13,7 +61,7 @@ function App() {
     {
       id: 1,
       type: 'bot',
-      content: '👋 Hi! I\'m your AI blog generator. Give me a topic and I\'ll create a comprehensive blog post for you!',
+      content: "👋 Hi! I'm your AI blog generator. Give me a topic and I'll create a comprehensive blog post for you!",
       timestamp: new Date()
     }
   ]);
@@ -37,14 +85,30 @@ function App() {
   const [showImageSidebar, setShowImageSidebar] = useState(true);
   const [draggedImage, setDraggedImage] = useState(null);
   const [blogSections, setBlogSections] = useState([]);
-  const [selectedSections, setSelectedSections] = useState(new Set());
+  const [selectedSections, setSelectedSections] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
-  const [dropZones, setDropZones] = useState([]);
   
   // Add Google Images search state variables
   const [googleImages, setGoogleImages] = useState([]);
   const [isSearchingGoogleImages, setIsSearchingGoogleImages] = useState(false);
   const [googleSearchQuery, setGoogleSearchQuery] = useState('');
+  
+  // NEW: Canva-style editor state variables
+  const [isEditorMode, setIsEditorMode] = useState(false);
+  const [selectedElement, setSelectedElement] = useState(null);
+  const [editorHistory, setEditorHistory] = useState([]);
+  const [editorHistoryIndex, setEditorHistoryIndex] = useState(-1);
+  const [elementStyles, setElementStyles] = useState({});
+  const [canvasSettings, setCanvasSettings] = useState({
+    backgroundColor: '#ffffff',
+    padding: '40px',
+    maxWidth: '800px',
+    fontFamily: 'Inter, sans-serif'
+  });
+  
+  // Add missing state variables for Canva editor
+  const [editingContent, setEditingContent] = useState('');
+  const [currentEditingMessageId, setCurrentEditingMessageId] = useState(null);
   
   const messagesEndRef = useRef(null);
 
@@ -53,8 +117,8 @@ function App() {
     const fetchModels = async () => {
       try {
         const apiUrl = process.env.NODE_ENV === 'production' 
-          ? '/api/models'
-          : 'http://localhost:4000/models';
+          ? 'https://blog.andrewbrowne.org/blog/models'
+          : 'http://localhost:4000/blog/models';
         
         const response = await fetch(apiUrl);
         if (response.ok) {
@@ -104,14 +168,37 @@ function App() {
     }
   }, [messages, autoScroll]);
 
+  // Authentication and API functions
+  const getApiUrl = (endpoint) => {
+    const baseUrl = process.env.NODE_ENV === 'production' 
+      ? 'https://blog.andrewbrowne.org'
+      : 'http://localhost:4000';
+    return `${baseUrl}${endpoint}`;
+  };
+
+  const mapFormDataToQuestionnaire = (formData) => {
+    return {
+      industry: formData.industry || '',
+      content_goals: formData.contentGoals || '',
+      target_audience: formData.targetAudience || '',
+      tone_preference: formData.tonePreference || 'professional',
+      content_length: formData.contentLength || 'medium',
+      posting_frequency: formData.postingFrequency || 'weekly',
+      content_types: formData.contentTypes || [],
+      pain_points: formData.painPoints || [],
+      success_metrics: formData.successMetrics || [],
+      additional_context: formData.additionalContext || ''
+    };
+  };
+
   const generateBlogStream = async (topic, onStep, onComplete, onError) => {
     try {
       console.log('Starting streaming request for topic:', topic);
       
       // Use different API URLs for development vs production
       const apiUrl = process.env.NODE_ENV === 'production' 
-        ? '/api/blog/stream'  // Production: goes through nginx proxy
-        : 'http://localhost:4000/blog/stream';  // Development: direct to backend
+        ? 'https://blog.andrewbrowne.org/blog/stream'
+        : 'http://localhost:4000/blog/stream';
       
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -222,123 +309,15 @@ function App() {
 
   const generateImagesForSelectedSections = async (sections, blogContent) => {
     setIsGeneratingImages(true);
-    const newImages = [];
     
     try {
-      for (const section of sections) {
-        if (!selectedSections.has(section.id)) continue;
-        
-        // Create contextual content for this specific section
-        const sectionContext = `
-          Section Title: ${section.title}
-          Section Content: ${section.content}
-          
-          Full Blog Context: ${blogContent.substring(0, 1000)}...
-        `;
-        
-        const apiUrl = process.env.NODE_ENV === 'production' 
-          ? '/api/blog/suggest-images'
-          : 'http://localhost:4000/blog/suggest-images';
-        
-        const response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ 
-            content: sectionContext,
-            section_title: section.title,
-            style: 'professional'
-          }),
-        });
-
-        if (!response.ok) {
-          console.error(`Failed to get suggestions for section: ${section.title}`);
-          continue;
-        }
-
-        const data = await response.json();
-        
-        // Generate actual image for the first suggestion
-        if (data.suggestions && data.suggestions.length > 0) {
-          const suggestion = data.suggestions[0];
-          
-          try {
-            const imageApiUrl = process.env.NODE_ENV === 'production' 
-              ? '/api/blog/generate-image'
-              : 'http://localhost:4000/blog/generate-image';
-            
-            const imageResponse = await fetch(imageApiUrl, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ 
-                content: sectionContext,
-                section_title: section.title,
-                style: 'professional',
-                size: '1024x1024'
-              }),
-            });
-
-            if (imageResponse.ok) {
-              const imageData = await imageResponse.json();
-              
-              console.log(`Generated contextual image for "${section.title}":`, imageData.enhanced_prompt);
-              
-              newImages.push({
-                id: `img-${Date.now()}-${section.id}`,
-                url: imageData.image.url,
-                base64: imageData.base64_image,
-                prompt: imageData.enhanced_prompt || suggestion.prompt,
-                description: suggestion.description,
-                sectionId: section.id,
-                sectionTitle: section.title,
-                placement: suggestion.placement || 'after-heading',
-                timestamp: new Date(),
-                contextual: true // Mark as contextually generated
-              });
-            } else {
-              console.error(`Failed to generate image for section: ${section.title}`);
-            }
-          } catch (error) {
-            console.error('Failed to generate image for section:', section.title, error);
-          }
-        }
-      }
-      
-      setGeneratedImages(prev => [...prev, ...newImages]);
-      if (newImages.length > 0) {
-        setShowImageSidebar(true);
-        
-        // Show success message with details
-        const successMessage = {
-          id: Date.now(),
-          type: 'system',
-          content: `🎨 Generated ${newImages.length} contextual images for selected sections: ${newImages.map(img => img.sectionTitle).join(', ')}`,
-          timestamp: new Date()
-        };
-        
-        setTimeout(() => {
-          setMessages(prev => [...prev, successMessage]);
-        }, 1000);
-      }
-      
-    } catch (error) {
-      console.error('Error generating contextual images:', error);
-      
-      // Show error message
-      const errorMessage = {
-        id: Date.now(),
-        type: 'system',
-        content: '❌ Failed to generate contextual images. Please try again.',
-        timestamp: new Date()
-      };
-      
+      // Show that image endpoints don't exist
       setTimeout(() => {
-        setMessages(prev => [...prev, errorMessage]);
-      }, 500);
-    } finally {
+        setIsGeneratingImages(false);
+        alert('Image generation endpoints not available in current backend');
+      }, 1000);
+    } catch (error) {
+      console.error('Image generation not available:', error);
       setIsGeneratingImages(false);
     }
   };
@@ -346,34 +325,19 @@ function App() {
   // Google Images search functions
   const searchGoogleImages = async (query, numResults = 10) => {
     setIsSearchingGoogleImages(true);
+    
     try {
       const apiUrl = process.env.NODE_ENV === 'production' 
-        ? '/api/blog/search-google-images'
-        : 'http://localhost:4000/blog/search-google-images';
-
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          query: query,
-          num_results: numResults
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      setGoogleImages(data.results || []);
-      return data;
+        ? 'https://blog.andrewbrowne.org/blog/search-google-images'  // CHANGED: removed /api prefix
+        : 'http://localhost:4000/blog/search-google-images';         // CHANGED: removed /api prefix
+      
+      // Show that search endpoints don't exist
+      setTimeout(() => {
+        setIsSearchingGoogleImages(false);
+        alert('Google Images search endpoints not available in current backend');
+      }, 1000);
     } catch (error) {
-      console.error('Error searching Google Images:', error);
-      alert('Failed to search Google Images. Please check your API configuration.');
-      return { results: [] };
-    } finally {
+      console.error('Google Images search not available:', error);
       setIsSearchingGoogleImages(false);
     }
   };
@@ -392,7 +356,7 @@ function App() {
       }));
 
       const apiUrl = process.env.NODE_ENV === 'production' 
-        ? '/api/blog/search-images-for-sections'
+        ? 'https://blog.andrewbrowne.org/blog/search-images-for-sections'
         : 'http://localhost:4000/blog/search-images-for-sections';
 
       const response = await fetch(apiUrl, {
@@ -470,6 +434,66 @@ function App() {
 
   const handleDragLeave = (e) => {
     e.currentTarget.classList.remove('drag-over');
+  };
+
+  // NEW: Enhanced handleCanvaDrop function for Canva editor
+  const handleCanvaDrop = (e) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove('canva-drag-over');
+    
+    if (!draggedImage) {
+      console.log('No dragged image found');
+      return;
+    }
+
+    setIsDragging(false);
+    
+    // Get drop position from data attribute
+    const dropPosition = e.currentTarget.getAttribute('data-position');
+    
+    // Create image HTML
+    const imageHtml = `
+      <div class="blog-image" style="margin: 20px 0; text-align: center;">
+        <img src="${draggedImage.url}" alt="${draggedImage.description || draggedImage.alt || ''}" style="max-width: 100%; height: auto; border-radius: 12px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);" />
+        ${draggedImage.description ? `<p style="margin-top: 8px; color: #64748b; font-size: 0.9rem; font-style: italic;">${draggedImage.description}</p>` : ''}
+      </div>
+    `;
+
+    // Update editing content if in editor mode
+    if (currentEditingMessageId && editingContent) {
+      let newContent = editingContent;
+      
+      if (dropPosition === 'start') {
+        newContent = imageHtml + editingContent;
+      } else if (dropPosition === 'end') {
+        newContent = editingContent + imageHtml;
+      } else {
+        // Insert at specific position
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(editingContent, 'text/html');
+        const elements = Array.from(doc.body.children);
+        const position = parseInt(dropPosition);
+        
+        if (position >= 0 && position < elements.length) {
+          elements[position].insertAdjacentHTML('beforebegin', imageHtml);
+          newContent = doc.body.innerHTML;
+        } else {
+          newContent = editingContent + imageHtml;
+        }
+      }
+      
+      setEditingContent(newContent);
+      
+      // Also update the message
+      setMessages(prev => prev.map(msg => {
+        if (msg.id === currentEditingMessageId) {
+          return { ...msg, content: newContent };
+        }
+        return msg;
+      }));
+    }
+
+    setDraggedImage(null);
   };
 
   const handleDrop = (e, messageId, dropZone = null) => {
@@ -713,6 +737,7 @@ function App() {
         
         elements.forEach((element, index) => {
           const isHeading = ['H1', 'H2', 'H3', 'H4', 'H5', 'H6'].includes(element.tagName);
+          const isParagraph = element.tagName === 'P';
           
           // Add drop zone before each section (at the beginning of headings)
           if (isHeading && isDragging && messageId) {
@@ -741,21 +766,26 @@ function App() {
             />
           );
           
+          // Add drop zone after paragraphs (between content blocks)
+          if (isParagraph && isDragging && messageId) {
+            result.push(
+              <div 
+                key={`drop-after-p-${index}`}
+                className="drop-zone section-drop-zone paragraph-drop"
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, messageId, `after-paragraph-${index}`)}
+              >
+                <div className="drop-zone-content">
+                  <span className="drop-icon">📝</span>
+                  <span className="drop-text">Drop image after paragraph</span>
+                </div>
+              </div>
+            );
+          }
+          
           // Add drop zone after each section (at the end of sections)
           if (isHeading && isDragging && messageId) {
-            // Look ahead to see if there's content after this heading before the next heading
-            let hasContentAfter = false;
-            for (let i = index + 1; i < elements.length; i++) {
-              const nextElement = elements[i];
-              if (['H1', 'H2', 'H3', 'H4', 'H5', 'H6'].includes(nextElement.tagName)) {
-                break; // Found next heading
-              }
-              if (nextElement.textContent.trim()) {
-                hasContentAfter = true;
-                break;
-              }
-            }
-            
             // If this is the last element or next element is a heading, add drop zone after
             if (index === elements.length - 1 || 
                 (index + 1 < elements.length && ['H1', 'H2', 'H3', 'H4', 'H5', 'H6'].includes(elements[index + 1].tagName))) {
@@ -969,43 +999,181 @@ function App() {
     URL.revokeObjectURL(url);
   };
 
+  // NEW: Canva-style editor functions
+  const enterEditorMode = (messageId, content) => {
+    setEditingContent(content);
+    setCurrentEditingMessageId(messageId);
+    setIsEditorMode(true);
+  };
+
+  const exitEditorMode = () => {
+    setIsEditorMode(false);
+    setSelectedElement(null);
+  };
+
+  const saveToHistory = () => {
+    const currentState = {
+      elementStyles: { ...elementStyles },
+      canvasSettings: { ...canvasSettings },
+      timestamp: Date.now()
+    };
+    
+    const newHistory = editorHistory.slice(0, editorHistoryIndex + 1);
+    newHistory.push(currentState);
+    setEditorHistory(newHistory);
+    setEditorHistoryIndex(newHistory.length - 1);
+  };
+
+  const undo = () => {
+    if (editorHistoryIndex > 0) {
+      const previousState = editorHistory[editorHistoryIndex - 1];
+      setElementStyles(previousState.elementStyles);
+      setCanvasSettings(previousState.canvasSettings);
+      setEditorHistoryIndex(editorHistoryIndex - 1);
+    }
+  };
+
+  const redo = () => {
+    if (editorHistoryIndex < editorHistory.length - 1) {
+      const nextState = editorHistory[editorHistoryIndex + 1];
+      setElementStyles(nextState.elementStyles);
+      setCanvasSettings(nextState.canvasSettings);
+      setEditorHistoryIndex(editorHistoryIndex + 1);
+    }
+  };
+
+  // eslint-disable-next-line no-unused-vars
+  const selectElement = (elementId, elementType) => {
+    setSelectedElement({ id: elementId, type: elementType });
+  };
+
+  const updateElementStyle = (elementId, styleProperty, value) => {
+    setElementStyles(prev => ({
+      ...prev,
+      [elementId]: {
+        ...prev[elementId],
+        [styleProperty]: value
+      }
+    }));
+    saveToHistory();
+  };
+
+  const duplicateElement = (elementId) => {
+    const newId = `${elementId}_copy_${Date.now()}`;
+    const originalStyles = elementStyles[elementId] || {};
+    setElementStyles(prev => ({
+      ...prev,
+      [newId]: { ...originalStyles }
+    }));
+    saveToHistory();
+  };
+
+  const deleteElement = (elementId) => {
+    setElementStyles(prev => {
+      const newStyles = { ...prev };
+      delete newStyles[elementId];
+      return newStyles;
+    });
+    if (selectedElement?.id === elementId) {
+      setSelectedElement(null);
+    }
+    saveToHistory();
+  };
+
   // Handle landing page completion
-  const handleLandingComplete = (formData) => {
-    setShowLandingPage(false);
-    localStorage.setItem('completedLanding', 'true'); // Save completion state
+  const handleLandingComplete = async (formData) => {
     console.log('Landing page completed with data:', formData);
     
-    // Update the welcome message to be personalized
-    setMessages([
-      {
-        id: 1,
-        type: 'bot',
-        content: `👋 Welcome ${formData.name}! I'm excited to help ${formData.company} create amazing blog content. Based on your preferences, I'll focus on ${formData.primaryGoal} for ${formData.targetAudience} with a ${formData.tonePreference} tone. Give me a topic and I'll create a comprehensive blog post for you!`,
-        timestamp: new Date()
+    try {
+      let currentUser = user;
+      
+      // If user is not already authenticated, register and login
+      if (!isAuthenticated) {
+        try {
+          // Try to register the user
+          const registrationResult = await dispatch(registerUser(formData)).unwrap();
+          console.log('User registered successfully:', registrationResult);
+          currentUser = registrationResult;
+        } catch (registrationError) {
+          console.log('Registration failed, attempting login:', registrationError);
+          
+          // If registration fails, try to login (user might already exist)
+          try {
+            const loginResult = await dispatch(loginUser({ 
+              email: formData.email,
+              username: formData.email.split('@')[0],
+              password: 'TempPass123!' // Use the same strong temporary password
+            })).unwrap();
+            
+            currentUser = loginResult.user;
+            console.log('User logged in successfully:', currentUser);
+          } catch (loginError) {
+            console.error('Both registration and login failed:', loginError);
+            // Continue with UI update even if authentication fails
+          }
+        }
       }
-    ]);
+      
+      // Save questionnaire data if user is authenticated
+      if (currentUser?.id) {
+        try {
+          const questionnaireData = mapFormDataToQuestionnaire(formData);
+          await dispatch(saveQuestionnaireData({
+            userId: currentUser.id,
+            questionnaireData
+          })).unwrap();
+          console.log('Questionnaire data saved successfully');
+        } catch (questionnaireError) {
+          console.error('Failed to save questionnaire data:', questionnaireError);
+          // Continue with UI update even if questionnaire save fails
+        }
+      }
+      
+    } catch (error) {
+      console.error('Error during landing completion:', error);
+      // Continue with UI update even if backend operations fail
+    }
     
-    // Here you can save to database later
-    // Example: await saveUserPreferences(formData);
+    // Update UI state
+    setAuthMode('app');
+    localStorage.setItem('completedLanding', 'true');
+    
+    // Set personalized welcome message
+    const userName = formData.name || formData.email?.split('@')[0] || 'there';
+    setWelcomeMessage(`Welcome ${userName}! Let's create some amazing blog content together.`);
+  };
+
+  // Handle switching to register (questionnaire)
+  const handleSwitchToRegister = () => {
+    setAuthMode('register');
+    dispatch(clearError());
+  };
+
+  // Handle switching to login
+  const handleSwitchToLogin = () => {
+    setAuthMode('login');
+    dispatch(clearError());
+  };
+
+  // Handle forgot password
+  const handleForgotPassword = () => {
+    // For now, just show an alert - you can implement proper forgot password later
+    alert('Please contact support for password reset assistance.');
   };
 
   // Reset to landing page
   const resetToLandingPage = () => {
-    setShowLandingPage(true);
-    setMessages([
-      {
-        id: 1,
-        type: 'bot',
-        content: '👋 Hi! I\'m your AI blog generator. Give me a topic and I\'ll create a comprehensive blog post for you!',
-        timestamp: new Date()
-      }
-    ]);
+    // Clear authentication data using Redux
+    dispatch(logout());
+    
+    // Reset UI state
+    setAuthMode('login'); // Show login page instead of questionnaire for returning users
+    setWelcomeMessage('');
   };
 
-  // Show landing page first
-  if (showLandingPage) {
-    return <LandingPage onComplete={handleLandingComplete} />;
-  }
+  const handleLogout = () => {
+    resetToLandingPage();
+  };
 
   // Enhanced Image Sidebar Component
   const ImageSidebar = () => {
@@ -1074,14 +1242,17 @@ function App() {
                 {googleImages.map((image) => (
                   <div
                     key={image.id}
-                    className="image-item google-image"
+                    className={`image-item google-image ${isDragging && draggedImage && draggedImage.id === image.id ? 'dragging' : ''}`}
                     draggable
-                    onDragStart={(e) => handleDragStart(e, {
-                      ...image,
-                      url: image.link,
-                      description: image.title,
-                      placement: 'inline'
-                    })}
+                    onDragStart={(e) => {
+                      console.log('Google Image drag start:', image);
+                      handleDragStart(e, {
+                        ...image,
+                        url: image.link,
+                        description: image.title,
+                        placement: 'inline'
+                      });
+                    }}
                     onDragEnd={handleDragEnd}
                   >
                     <div className="image-preview">
@@ -1116,20 +1287,6 @@ function App() {
               </div>
             </div>
           )}
-        </div>
-
-        {/* Google Custom Search Widget */}
-        <div className="google-custom-search-section">
-          <h4>🌐 Google Custom Search</h4>
-          <p className="search-widget-description">
-            Use Google's search widget to find and drag images directly:
-          </p>
-          <div className="custom-search-container">
-            <div className="gcse-search" data-resultsUrl="/search-results" data-newWindow="true"></div>
-          </div>
-          <p className="search-widget-note">
-            💡 Tip: Right-click images from search results and drag them to your blog!
-          </p>
         </div>
 
         {/* Existing DALL-E Section */}
@@ -1239,59 +1396,77 @@ function App() {
     );
   };
 
+  // Update authMode when authentication state changes
+  useEffect(() => {
+    if (isAuthenticated) {
+      setAuthMode('app');
+    }
+  }, [isAuthenticated]);
+
   return (
     <div className="App">
+      {authMode === 'login' ? (
+        <LoginPage 
+          onSwitchToRegister={handleSwitchToRegister}
+          onForgotPassword={handleForgotPassword}
+        />
+      ) : authMode === 'register' ? (
+        <LandingPage onComplete={handleLandingComplete} onSwitchToLogin={handleSwitchToLogin} />
+      ) : (
+        <>
       {/* Main Header */}
       <header className="main-header">
         <div className="header-container">
-          <div className="brand">
-            <span className="brand-icon">✨</span>
-            <h1 className="brand-title">AI Blog Generator</h1>
-            <span className="brand-subtitle">Powered by LangGraph & ReAct Framework</span>
+              <div className="header-left">
+                <h1 className="app-title">🤖 AI Blog Generator</h1>
+                <span className="app-subtitle">Powered by ReAct Framework & LangGraph</span>
           </div>
-          <div className="header-controls">
-            <div className="model-controls">
-              <div className="llm-toggle">
-                <span className="toggle-label">Provider:</span>
-                <div className="toggle-switch">
-                  <input
-                    type="checkbox"
-                    id="llm-toggle"
-                    checked={llmProvider === 'cloud'}
-                    onChange={(e) => setLlmProvider(e.target.checked ? 'cloud' : 'local')}
+              <div className="header-right">
+                {/* User Indicator */}
+                {isAuthenticated && user && (
+                  <div className="user-indicator">
+                    <span className="user-icon">👤</span>
+                    <span className="user-name">{user.full_name || user.username || user.email}</span>
+                    <button 
+                      className="logout-btn" 
+                      onClick={handleLogout}
+                      title="Logout and return to login page"
+                    >
+                      ↗
+                    </button>
+                  </div>
+                )}
+                <div className="llm-selector">
+                  <label htmlFor="llm-provider">🧠 LLM Provider:</label>
+                  <select
+                    id="llm-provider"
+                    value={llmProvider}
+                    onChange={(e) => setLlmProvider(e.target.value)}
                     disabled={isLoading}
-                  />
-                  <label htmlFor="llm-toggle" className="toggle-slider">
-                    <span className="toggle-option local">🖥️ Local</span>
-                    <span className="toggle-option cloud">☁️ Cloud</span>
-                  </label>
-                </div>
+                  >
+                    <option value="local">Local (Ollama)</option>
+                    <option value="cloud">Cloud (Claude)</option>
+                  </select>
               </div>
               <div className="model-selector">
-                <span className="selector-label">Model:</span>
+                  <label htmlFor="model-select">🎯 Model:</label>
                 <select
+                    id="model-select"
                   value={selectedModel}
                   onChange={(e) => setSelectedModel(e.target.value)}
-                  disabled={isLoading}
-                  className="model-dropdown"
-                >
-                  {(availableModels[llmProvider] || []).map((model) => (
-                    <option key={model} value={model}>
-                      {model}
-                    </option>
-                  ))}
+                    disabled={isLoading || availableModels[llmProvider]?.length === 0}
+                  >
+                    {availableModels[llmProvider]?.length > 0 ? (
+                      availableModels[llmProvider].map(model => (
+                        <option key={model} value={model}>{model}</option>
+                      ))
+                    ) : (
+                      <option value="">Loading models...</option>
+                    )}
                 </select>
               </div>
-            </div>
-            <button 
-              onClick={resetToLandingPage}
-              className="reset-landing-btn"
-              title="Return to questionnaire"
-            >
-              📋 Setup
-            </button>
             <div className="status-indicator">
-              <div className="status-dot"></div>
+                  <span className="status-dot online"></span>
               <span>Online</span>
             </div>
           </div>
@@ -1305,6 +1480,12 @@ function App() {
             <div className="chat-title">
               <h2>Blog Generation Assistant</h2>
               <p>Enter a topic and watch the AI create a comprehensive blog post using advanced reasoning</p>
+                  {welcomeMessage && (
+                    <div className="welcome-message">
+                      <span className="welcome-icon">👋</span>
+                      <span>{welcomeMessage}</span>
+                    </div>
+                  )}
             </div>
             <div className="chat-controls">
               <div className="auto-scroll-toggle">
@@ -1331,19 +1512,19 @@ function App() {
                   {message.type === 'user' ? '👤' : '🤖'}
                 </div>
                 <div className="message-content">
-                  <div 
-                    className={`message-bubble ${message.isError ? 'error' : ''} ${message.isStreaming ? 'streaming' : ''}`}
-                    onDragOver={message.type === 'bot' && message.isComplete ? handleDragOver : undefined}
-                    onDragLeave={message.type === 'bot' && message.isComplete ? handleDragLeave : undefined}
-                    onDrop={message.type === 'bot' && message.isComplete ? (e) => handleDrop(e, message.id) : undefined}
-                  >
-                    {/* Debug info */}
-                    {message.type === 'bot' && (
-                      <div style={{fontSize: '10px', color: '#999', marginBottom: '5px'}}>
-                        Debug: isComplete={String(message.isComplete)}, isDragging={String(isDragging)}, id={message.id}
-                      </div>
-                    )}
-                    
+                      <div 
+                        className={`message-bubble ${message.isError ? 'error' : ''} ${message.isStreaming ? 'streaming' : ''}`}
+                        onDragOver={message.type === 'bot' && message.isComplete ? handleDragOver : undefined}
+                        onDragLeave={message.type === 'bot' && message.isComplete ? handleDragLeave : undefined}
+                        onDrop={message.type === 'bot' && message.isComplete ? (e) => handleDrop(e, message.id) : undefined}
+                      >
+                        {/* Debug info */}
+                        {message.type === 'bot' && (
+                          <div style={{fontSize: '10px', color: '#999', marginBottom: '5px'}}>
+                            Debug: isComplete={String(message.isComplete)}, isDragging={String(isDragging)}, id={message.id}
+                          </div>
+                        )}
+                        
                     {/* Streaming indicator */}
                     {message.isStreaming && (
                       <div className="streaming-indicator">
@@ -1369,9 +1550,16 @@ function App() {
                         {/* Blog content */}
                         {message.isComplete ? 
                           <div>
-                            {formatContent(message.content, message.format, message.id)}
+                                {formatContent(message.content, message.format, message.id)}
                             {/* Export button for completed blogs */}
                             <div className="export-actions">
+                                  <button 
+                                    className="editor-mode-btn"
+                                    onClick={() => enterEditorMode(message.id, message.content)}
+                                    title="Edit in Canva-style visual editor"
+                                  >
+                                    🎨 Edit in Canva Mode
+                                  </button>
                               <button 
                                 className="export-button"
                                 onClick={() => exportToHTML(message.content, message.originalTopic || 'Blog Post')}
@@ -1380,8 +1568,8 @@ function App() {
                                 📄 Export HTML
                               </button>
                             </div>
-                          </div>
-                          :
+                              </div>
+                              :
                           <div className="streaming-content">
                             <div className="current-thought">
                               {message.content.split('\n').map((line, idx) => (
@@ -1464,7 +1652,7 @@ function App() {
                       disabled={isLoading}
                       className="option-select"
                     >
-                      <option value="general">General</option>
+                          <option value="general">General</option>
                       <option value="professionals">Professionals</option>
                       <option value="beginners">Beginners</option>
                       <option value="experts">Experts</option>
@@ -1587,17 +1775,19 @@ function App() {
         </div>
       </footer>
 
-      {/* Image Sidebar */}
-      {/* Floating Sidebar Toggle Button */}
-      <button 
-        className="floating-sidebar-toggle"
-        onClick={() => setShowImageSidebar(!showImageSidebar)}
-        title={showImageSidebar ? "Close Image Sidebar" : "Open Image Sidebar"}
-      >
-        {showImageSidebar ? '🖼️ ×' : '🖼️ ☰'}
-      </button>
-      
-      <ImageSidebar />
+          {/* Image Sidebar */}
+          {/* Floating Sidebar Toggle Button */}
+          <button 
+            className="floating-sidebar-toggle"
+            onClick={() => setShowImageSidebar(!showImageSidebar)}
+            title={showImageSidebar ? "Close Image Sidebar" : "Open Image Sidebar"}
+          >
+            {showImageSidebar ? '🖼️ ×' : '🖼️ ☰'}
+          </button>
+          
+          <ImageSidebar />
+        </>
+      )}
     </div>
   );
 }
