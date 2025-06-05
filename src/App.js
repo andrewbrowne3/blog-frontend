@@ -130,13 +130,20 @@ function App() {
         if (response.ok) {
           const models = await response.json();
           console.log('Received models:', models);
-          setAvailableModels(models);
+          
+          // Map API response to expected format
+          const mappedModels = {
+            local: models.local_models || [],
+            cloud: models.cloud_models || []
+          };
+          
+          setAvailableModels(mappedModels);
           
           // Set default model based on provider
-          if (llmProvider === 'local' && models.local && models.local.length > 0) {
-            setSelectedModel(models.local[0]);
-          } else if (llmProvider === 'cloud' && models.cloud && models.cloud.length > 0) {
-            setSelectedModel(models.cloud[0]);
+          if (llmProvider === 'local' && mappedModels.local && mappedModels.local.length > 0) {
+            setSelectedModel(mappedModels.local[0]);
+          } else if (llmProvider === 'cloud' && mappedModels.cloud && mappedModels.cloud.length > 0) {
+            setSelectedModel(mappedModels.cloud[0]);
           }
         } else {
           console.error('Failed to fetch models, status:', response.status);
