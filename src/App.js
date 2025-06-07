@@ -118,7 +118,7 @@ function App() {
       try {
         const apiUrl = process.env.NODE_ENV === 'production' 
           ? 'https://blog.andrewbrowne.org/api/blog/models'
-          : 'http://localhost:4000/blog/models';
+          : 'http://localhost:4000/api/blog/models';
         
         const response = await fetch(apiUrl, {
           headers: {
@@ -206,7 +206,7 @@ function App() {
       
       const apiUrl = process.env.NODE_ENV === 'production' 
       ? 'https://blog.andrewbrowne.org/api/blog/stream'
-      : 'http://localhost:4000/blog/stream';
+      : 'http://localhost:4000/api/blog/stream';
       
     try {
       const response = await fetch(apiUrl, {
@@ -322,61 +322,163 @@ function App() {
     setIsGeneratingImages(true);
     
     try {
-      // Show that image endpoints don't exist
-      setTimeout(() => {
-        setIsGeneratingImages(false);
-        alert('Image generation endpoints not available in current backend');
-      }, 1000);
+      const generatedImages = [];
+      
+      for (const section of sections) {
+        try {
+          // Generate image for this section using DALL-E
+          const apiUrl = process.env.NODE_ENV === 'production' 
+            ? 'https://blog.andrewbrowne.org/api/blog/generate-image'
+            : 'http://localhost:4000/api/blog/generate-image';
+          
+          console.log('🎨 Generating image for section:', section.title);
+          console.log('📝 Section content:', section.content?.substring(0, 100) + '...');
+          
+          const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              content: section.content || blogContent,
+              section_title: section.title,
+              style: 'professional',
+              size: '1024x1024'
+            })
+          });
+
+          console.log('📡 Response status:', response.status);
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const data = await response.json();
+          console.log('📦 Response data:', data);
+          
+          if (data.success && data.image) {
+            console.log('✅ Image generated successfully:', data.image.url);
+            generatedImages.push({
+              id: `dalle-${section.title}-${Date.now()}`,
+              url: data.base64_image || data.image.url,
+              description: `AI-generated image for: ${section.title}`,
+              sectionTitle: section.title,
+              prompt: data.enhanced_prompt,
+              source: 'dalle',
+              alt: section.title
+            });
+          } else {
+            console.log('❌ Image generation failed for section:', section.title, 'Response:', data);
+          }
+        } catch (error) {
+          console.error(`❌ Error generating image for section "${section.title}":`, error);
+        }
+      }
+      
+      console.log('🖼️ Total images generated:', generatedImages.length);
+      
+      // Add generated images to the state
+      setGeneratedImages(prev => [...prev, ...generatedImages]);
+      
+      if (generatedImages.length > 0) {
+        alert(`Successfully generated ${generatedImages.length} images using DALL-E!`);
+      } else {
+        alert('No images were generated. Please check your OpenAI API configuration.');
+      }
+      
     } catch (error) {
-      console.error('Image generation not available:', error);
+      console.error('Image generation error:', error);
+      alert('Failed to generate images. Please check your API configuration.');
+    } finally {
       setIsGeneratingImages(false);
     }
   };
 
   // Google Images search functions
-  const searchGoogleImages = async (query, numResults = 10) => {
+  const searchGoogleImages = async (query, numResults = 5) => {
     setIsSearchingGoogleImages(true);
     
     try {
       const apiUrl = process.env.NODE_ENV === 'production' 
-        ? 'https://blog.andrewbrowne.org/blog/search-google-images'  // CHANGED: removed /api prefix
-        : 'http://localhost:4000/blog/search-google-images';         // CHANGED: removed /api prefix
+        ? 'https://blog.andrewbrowne.org/api/blog/search-google-images'
+        : 'http://localhost:4000/api/blog/search-google-images';
       
-      // Show that search endpoints don't exist
-      setTimeout(() => {
-        setIsSearchingGoogleImages(false);
-        alert('Google Images search endpoints not available in current backend');
-      }, 1000);
-    } catch (error) {
-      console.error('Google Images search not available:', error);
-      setIsSearchingGoogleImages(false);
-    }
-  };
-
-  const searchImagesForAllSections = async () => {
-    if (blogSections.length === 0) {
-      alert('No blog sections available. Generate a blog first!');
-      return;
-    }
-
-    setIsSearchingGoogleImages(true);
-    try {
-      const sectionsData = blogSections.map(section => ({
-        title: section.title,
-        content: section.content || ''
-      }));
-
-      const apiUrl = process.env.NODE_ENV === 'production' 
-        ? 'https://blog.andrewbrowne.org/blog/search-images-for-sections'
-        : 'http://localhost:4000/blog/search-images-for-sections';
-
+      console.log('🔍 Searching Google Images for:', query);
+      
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          sections: sectionsData
+          query: query,
+          num_results: numResults
+        })
+      });
+
+      console.log('📡 Google Images response status:', response.status);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('📦 Google Images response data:', data);
+      
+      if (data.success && data.results && data.results.length > 0) {
+        // Format images for the UI
+        const formattedImages = data.results.map((img, index) => ({
+          id: `google-${query}-${index}-${Date.now()}`,
+          url: img.link || img.url,
+          thumbnail: img.thumbnail || img.url,
+          description: img.title || `Search result for: ${query}`,
+          source: 'google',
+          alt: img.title || query,
+          contextLink: img.contextLink
+        }));
+        
+        console.log('✅ Google Images found:', formattedImages.length);
+        setGoogleImages(formattedImages);
+        alert(`Found ${formattedImages.length} images for "${query}"`);
+      } else {
+        console.log('❌ No Google Images found for:', query);
+        setGoogleImages([]);
+        alert('No images found. Please try a different search term or check your Google API configuration.');
+      }
+      
+    } catch (error) {
+      console.error('❌ Google Images search error:', error);
+      setGoogleImages([]);
+      alert('Failed to search Google Images. Please check your API configuration.');
+    } finally {
+      setIsSearchingGoogleImages(false);
+    }
+  };
+
+  const searchImagesForAllSections = async () => {
+    if (!blogSections || blogSections.length === 0) {
+      alert('No blog sections available. Please generate a blog post first.');
+      return;
+    }
+    
+    setIsGeneratingImages(true);
+    
+    try {
+      const apiUrl = process.env.NODE_ENV === 'production' 
+        ? 'https://blog.andrewbrowne.org/api/blog/search-images-for-sections'
+        : 'http://localhost:4000/api/blog/search-images-for-sections';
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sections: blogSections.map(section => ({
+            title: section.title,
+            content: section.content
+          })),
+          num_results_per_section: 3
         })
       });
 
@@ -386,27 +488,37 @@ function App() {
 
       const data = await response.json();
       
-      // Flatten all images from all sections
-      const allImages = [];
-      Object.entries(data.results || {}).forEach(([sectionTitle, sectionData]) => {
-        sectionData.images.forEach((image, index) => {
-          allImages.push({
-            ...image,
-            id: `google-${sectionTitle}-${index}`,
-            sectionTitle: sectionTitle,
-            query: sectionData.query,
-            source: 'google'
-          });
+      if (data.success && data.results) {
+        // Format images from all sections
+        const allImages = [];
+        
+        Object.entries(data.results).forEach(([sectionTitle, sectionData]) => {
+          if (sectionData.images && sectionData.images.length > 0) {
+            const formattedImages = sectionData.images.map((img, index) => ({
+              id: `section-${sectionTitle}-${index}-${Date.now()}`,
+              url: img.link || img.url,
+              thumbnail: img.thumbnail || img.url,
+              description: img.title || `Image for: ${sectionTitle}`,
+              source: 'google-sections',
+              alt: img.title || sectionTitle,
+              sectionTitle: sectionTitle,
+              contextLink: img.contextLink
+            }));
+            allImages.push(...formattedImages);
+          }
         });
-      });
-
-      setGoogleImages(allImages);
-      return data;
+        
+        setGeneratedImages(prev => [...prev, ...allImages]);
+        alert(`Found ${allImages.length} images across ${Object.keys(data.results).length} sections!`);
+      } else {
+        alert('No images found for the blog sections. Please check your Google API configuration.');
+      }
+      
     } catch (error) {
-      console.error('Error searching images for sections:', error);
+      console.error('Section images search error:', error);
       alert('Failed to search images for sections. Please check your API configuration.');
     } finally {
-      setIsSearchingGoogleImages(false);
+      setIsGeneratingImages(false);
     }
   };
 
@@ -1239,10 +1351,10 @@ function App() {
             </div>
             <button
               onClick={searchImagesForAllSections}
-              disabled={isSearchingGoogleImages || blogSections.length === 0}
+              disabled={isGeneratingImages || blogSections.length === 0}
               className="auto-search-btn"
             >
-              {isSearchingGoogleImages ? (
+              {isGeneratingImages ? (
                 <>
                   <span className="spinner"></span>
                   Searching...
