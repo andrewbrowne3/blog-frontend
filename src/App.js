@@ -131,7 +131,7 @@ function App() {
           const models = await response.json();
           console.log('Received models:', models);
           
-          // Map API response to expected format
+          // Map API response to expected formatt
           const mappedModels = {
             local: models.local_models || [],
             cloud: models.cloud_models || []
