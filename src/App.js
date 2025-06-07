@@ -203,11 +203,11 @@ function App() {
 
   const generateBlogStream = async (topic, onStep, onComplete, onError) => {
     console.log('🚀 Starting streaming request...');
-    
-    const apiUrl = process.env.NODE_ENV === 'production' 
+      
+      const apiUrl = process.env.NODE_ENV === 'production' 
       ? 'https://blog.andrewbrowne.org/api/blog/stream'
       : 'http://localhost:4000/blog/stream';
-    
+      
     try {
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -217,13 +217,14 @@ function App() {
             'Authorization': `Bearer ${authTokens.access_token}`
           })
         },
-        body: JSON.stringify({
+        body: JSON.stringify({ 
           topic: topic,
           llm_provider: llmProvider,
           model_name: selectedModel || "gemma3:12b", // Fallback model
           num_sections: parseInt(numSections),
           target_audience: targetAudience,
-          tone: tone
+          tone: tone,
+          html_mode: true  // Add this to request HTML format from backend
         })
       });
 
@@ -252,10 +253,10 @@ function App() {
               if (data.status === 'connected') {
                 console.log('Connected to stream for topic:', data.topic);
               } else if (data.type === 'complete') {
-                // Final result - the blog content is in data.blog
+                // Final result - the blog content is in data.content (updated from data.blog)
                 console.log('Received final blog:', data);
                 onComplete({
-                  content: data.blog,
+                  content: data.content || data.blog, // Use content first, fallback to blog for compatibility
                   format: 'HTML',
                   complete: data.is_complete
                 });
@@ -737,9 +738,19 @@ function App() {
       // Parse HTML content to identify sections and add drop zones
       const parser = new DOMParser();
       const doc = parser.parseFromString(content, 'text/html');
-      const elements = Array.from(doc.body.children);
+      
+      // Fix: Get all elements, not just body children
+      let elements;
+      if (doc.body && doc.body.children.length > 0) {
+        elements = Array.from(doc.body.children);
+      } else {
+        // Fallback: if no body or empty body, get all elements from document
+        const allElements = doc.querySelectorAll('h1, h2, h3, h4, h5, h6, p, div, section, article');
+        elements = Array.from(allElements);
+      }
       
       console.log('Parsed elements:', elements.length, 'isDragging:', isDragging, 'messageId:', messageId);
+      console.log('Content length:', content.length, 'Has body:', !!doc.body);
       
       const renderElements = () => {
         const result = [];
