@@ -17,7 +17,9 @@ const isTokenExpired = (token) => {
 
 // Helper function to get API URL
 const getApiUrl = (endpoint) => {
-  const baseUrl = 'https://blog.andrewbrowne.org';
+  const baseUrl = process.env.NODE_ENV === 'production' 
+    ? 'https://blog.andrewbrowne.org'
+    : 'http://localhost:4000';
   return `${baseUrl}${endpoint}`;
 };
 
@@ -26,7 +28,7 @@ export const registerUser = createAsyncThunk(
   'auth/registerUser',
   async (userData, { rejectWithValue }) => {
     try {
-      const response = await fetch(getApiUrl('/users/'), {
+      const response = await fetch(getApiUrl('/api/users/'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -112,7 +114,7 @@ export const saveQuestionnaireData = createAsyncThunk(
         throw new Error('Authentication token expired');
       }
 
-      const response = await fetch(getApiUrl(`/users/${userId}/questionnaire`), {
+      const response = await fetch(getApiUrl(`/api/users/${userId}/questionnaire`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

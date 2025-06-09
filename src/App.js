@@ -7,14 +7,19 @@ import {
   logout,
   selectUser,
   selectIsAuthenticated,
-  selectAuthLoading,
-  selectAuthError,
+  selectTokens,
+  // selectCurrentUser, // Remove unused import
+  // selectAuthLoading,
+  // selectAuthError,
   clearError
 } from './store/slices/authSlice';
 import useAuthCheck from './hooks/useAuthCheck';
 import './App.css';
+import './Navigation.css';
+import './ProfilePage.css';
 import LandingPage from './LandingPage';
 import LoginPage from './LoginPage';
+import ProfilePage from './ProfilePage';
 
 // NEW: Canva-style Editor Component
 const CanvaEditor = ({ 
@@ -355,11 +360,24 @@ function App() {
   const dispatch = useDispatch();
   const user = useSelector(selectUser);
   const isAuthenticated = useSelector(selectIsAuthenticated);
-  const authLoading = useSelector(selectAuthLoading);
-  const authError = useSelector(selectAuthError);
+  const tokens = useSelector(selectTokens);
+  // const authLoading = useSelector(selectAuthLoading);
+  // const authError = useSelector(selectAuthError);
   
   // Use the auth check hook for automatic token validation
   useAuthCheck();
+
+  // Debug authentication state
+  useEffect(() => {
+    console.log('🔐 Authentication state changed:', {
+      isAuthenticated,
+      user: user ? { id: user.id, username: user.username, email: user.email } : null,
+      tokens: tokens ? { 
+        access_token: tokens.access_token ? 'present' : 'missing',
+        refresh_token: tokens.refresh_token ? 'present' : 'missing'
+      } : null
+    });
+  }, [isAuthenticated, user, tokens]);
 
   // Authentication flow state
   const [authMode, setAuthMode] = useState(() => {
@@ -379,17 +397,11 @@ function App() {
   // Local state for UI
   const [welcomeMessage, setWelcomeMessage] = useState('');
 
-  // Authentication state (keeping for backward compatibility)
-  const [authTokens, setAuthTokens] = useState(() => {
-    const savedTokens = localStorage.getItem('authTokens');
-    return savedTokens ? JSON.parse(savedTokens) : null;
-  });
-
   // Landing page state - check localStorage first
-  const [showLandingPage, setShowLandingPage] = useState(() => {
-    const saved = localStorage.getItem('completedLanding');
-    return saved !== 'true'; // Show landing page if not completed
-  });
+  // const [showLandingPage, setShowLandingPage] = useState(() => {
+  //   const saved = localStorage.getItem('completedLanding');
+  //   return saved !== 'true'; // Show landing page if not completed
+  // });
   
   const [messages, setMessages] = useState([
     {
@@ -444,7 +456,92 @@ function App() {
   const [editingContent, setEditingContent] = useState('');
   const [currentEditingMessageId, setCurrentEditingMessageId] = useState(null);
   
+  // NEW: Navigation state
+  const [currentPage, setCurrentPage] = useState('blog'); // 'blog', 'profile', 'editor', 'saved'
+  
   const messagesEndRef = useRef(null);
+
+  // NEW: Database connection functions
+  const saveBlogToDatabase = async (blogContent, title) => {
+    if (!user || !tokens?.access_token) {
+      alert('Please log in to save blogs');
+      return;
+    }
+
+    // For now, show a message that this feature is coming soon
+    // The backend currently only supports saving blogs that were generated through the AI system
+    alert('Blog saving from the frontend is not yet implemented. This feature requires backend updates to support direct blog saving from the frontend interface.');
+    
+    // TODO: Implement direct blog saving once backend endpoint is available
+    // This would require either:
+    // 1. A new endpoint like /api/blog/save-direct that accepts blog content directly
+    // 2. Or modifying the existing /api/blog/save endpoint to work without thread state
+    
+    console.log('Blog content to save:', { title, content: blogContent });
+    return null;
+  };
+
+  const loadSavedBlogs = async () => {
+    console.log('🔍 Checking authentication state:', { 
+      user: user ? 'exists' : 'null', 
+      tokens: tokens ? 'exists' : 'null',
+      access_token: tokens?.access_token ? 'exists' : 'missing',
+      isAuthenticated 
+    });
+    
+    if (!user || !tokens?.access_token) {
+      alert('Please log in to load saved blogs');
+      return;
+    }
+
+    try {
+      // Use the correct blog saved endpoint with user_id parameter
+      const response = await fetch(getApiUrl(`/api/blog/saved?user_id=${user.id}`), {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${tokens.access_token}`
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Loaded blogs from database:', result);
+        
+        // Handle the response format - it should be a BlogListResponse with blogs array
+        const blogs = result.blogs || [];
+        
+        // Convert saved blogs back to message format and add to messages
+        const blogMessages = blogs.map((blog, index) => ({
+          id: Date.now() + index,
+          type: 'bot',
+          content: blog.content,
+          topic: blog.topic || blog.title,
+          threadId: blog.thread_id,
+          timestamp: new Date(blog.created_at || Date.now()),
+          savedBlogId: blog.id
+        }));
+
+        if (blogMessages.length > 0) {
+          setMessages(prev => [...prev, ...blogMessages]);
+          alert(`Loaded ${blogMessages.length} saved blogs!`);
+        } else {
+          alert('No saved blogs found.');
+        }
+        
+        return blogs;
+      } else {
+        const errorText = await response.text();
+        console.error('Failed to load saved blogs:', response.status, errorText);
+        alert(`Failed to load blogs: ${response.status} - ${errorText}`);
+        return [];
+      }
+    } catch (error) {
+      console.error('Error loading saved blogs:', error);
+      alert(`Error loading blogs: ${error.message}`);
+      return [];
+    }
+  };
 
   // Fetch available models on component mount
   useEffect(() => {
@@ -456,8 +553,8 @@ function App() {
         
         const response = await fetch(apiUrl, {
           headers: {
-            ...(authTokens?.access_token && {
-              'Authorization': `Bearer ${authTokens.access_token}`
+            ...(tokens?.access_token && {
+              'Authorization': `Bearer ${tokens.access_token}`
             })
           }
         });
@@ -490,7 +587,7 @@ function App() {
     };
     
     fetchModels();
-  }, [llmProvider, authTokens]);
+  }, [llmProvider, tokens]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -547,8 +644,8 @@ function App() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(authTokens?.access_token && {
-            'Authorization': `Bearer ${authTokens.access_token}`
+          ...(tokens?.access_token && {
+            'Authorization': `Bearer ${tokens.access_token}`
           })
         },
         body: JSON.stringify({ 
@@ -592,7 +689,8 @@ function App() {
                 onComplete({
                   content: data.content || data.blog, // Use content first, fallback to blog for compatibility
                   format: 'HTML',
-                  complete: data.is_complete
+                  complete: data.is_complete,
+                  thread_id: data.thread_id // Add thread_id from backend response
                 });
               } else if (data.type === 'step') {
                 // ReAct step update
@@ -1127,7 +1225,7 @@ function App() {
     const onComplete = (finalData) => {
       setMessages(prev => prev.map(msg => {
         if (msg.id === streamingMessageId) {
-          return {
+          const completedMessage = {
             ...msg,
             content: finalData.content,
             format: finalData.format || 'HTML',
@@ -1138,8 +1236,27 @@ function App() {
             originalTopic: topic, // Store the original topic for export
             target_audience: targetAudience,
             tone: tone,
-            num_sections: numSections
+            num_sections: numSections,
+            topic: topic, // Add topic for database saving
+            thread_id: finalData.thread_id // Add thread_id from streaming response
           };
+          
+          // Automatically save completed blog to database
+          saveBlogToDatabase(completedMessage.content, completedMessage.originalTopic).then(blogId => {
+            if (blogId) {
+              console.log('✅ Blog automatically saved to database with ID:', blogId);
+              // Update the message with the saved blog ID
+              setMessages(prevMessages => prevMessages.map(m => 
+                m.id === streamingMessageId 
+                  ? { ...m, savedBlogId: blogId }
+                  : m
+              ));
+            }
+          }).catch(error => {
+            console.error('❌ Failed to auto-save blog:', error);
+          });
+          
+          return completedMessage;
         }
         return msg;
       }));
@@ -1473,11 +1590,6 @@ function App() {
     setIsEditorMode(true);
   };
 
-  const exitEditorMode = () => {
-    setIsEditorMode(false);
-    setSelectedElement(null);
-  };
-
   const saveToHistory = () => {
     const currentState = {
       elementStyles: { ...elementStyles },
@@ -1522,28 +1634,6 @@ function App() {
         [styleProperty]: value
       }
     }));
-    saveToHistory();
-  };
-
-  const duplicateElement = (elementId) => {
-    const newId = `${elementId}_copy_${Date.now()}`;
-    const originalStyles = elementStyles[elementId] || {};
-    setElementStyles(prev => ({
-      ...prev,
-      [newId]: { ...originalStyles }
-    }));
-    saveToHistory();
-  };
-
-  const deleteElement = (elementId) => {
-    setElementStyles(prev => {
-      const newStyles = { ...prev };
-      delete newStyles[elementId];
-      return newStyles;
-    });
-    if (selectedElement?.id === elementId) {
-      setSelectedElement(null);
-    }
     saveToHistory();
   };
 
@@ -1640,6 +1730,15 @@ function App() {
 
   const handleLogout = () => {
     resetToLandingPage();
+  };
+
+  const handleLoadSavedBlogs = async () => {
+    const count = await loadSavedBlogs();
+    if (count > 0) {
+      alert(`Loaded ${count} saved blogs!`);
+    } else {
+      alert('No saved blogs found.');
+    }
   };
 
   // Enhanced Image Sidebar Component
@@ -1870,6 +1969,75 @@ function App() {
     }
   }, [isAuthenticated]);
 
+  // Navigation Header Component
+  const NavigationHeader = () => {
+    if (!isAuthenticated || authMode !== 'app') return null;
+    
+    return (
+      <nav className="navigation-header">
+        <div className="nav-left">
+          <div className="nav-logo">🤖 AI Blog Generator</div>
+          <div className="nav-subtitle">Powered by ReAct Framework</div>
+        </div>
+        
+        <div className="nav-center">
+          <button 
+            className={`nav-button ${currentPage === 'blog' ? 'active' : ''}`}
+            onClick={() => setCurrentPage('blog')}
+          >
+            ✍️ Blog Writer
+          </button>
+          <button 
+            className={`nav-button ${currentPage === 'profile' ? 'active' : ''}`}
+            onClick={() => setCurrentPage('profile')}
+          >
+            👤 Profile
+          </button>
+          <button 
+            className="nav-button"
+            onClick={handleLoadSavedBlogs}
+            title="Load saved blogs from database"
+          >
+            📚 Load Saved
+          </button>
+          {isEditorMode && (
+            <button 
+              className={`nav-button ${currentPage === 'editor' ? 'active' : ''}`}
+              onClick={() => setCurrentPage('editor')}
+            >
+              🎨 Editor
+            </button>
+          )}
+        </div>
+        
+        <div className="nav-right">
+          {user && (
+            <div className="nav-user-info">
+              <div className="nav-user-avatar">
+                {user.first_name ? user.first_name.charAt(0).toUpperCase() : user.username.charAt(0).toUpperCase()}
+              </div>
+              <div className="nav-user-details">
+                <div className="nav-username">{user.first_name || user.username}</div>
+                <div className="nav-online-status">
+                  <div className="nav-online-dot"></div>
+                  Online
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <button 
+            className="nav-logout-btn" 
+            onClick={handleLogout}
+            title="Logout"
+          >
+            🚪 Logout
+          </button>
+        </div>
+      </nav>
+    );
+  };
+
   return (
     <div className="App">
       {authMode === 'login' ? (
@@ -1879,410 +2047,344 @@ function App() {
         />
       ) : authMode === 'register' ? (
         <LandingPage onComplete={handleLandingComplete} onSwitchToLogin={handleSwitchToLogin} />
-      ) : isEditorMode ? (
-        // NEW: Canva-style Editor Mode
-        <CanvaEditor 
-          content={editingContent}
-          onContentChange={setEditingContent}
-          onSave={() => {
-            // Save the edited content back to the message
-            setMessages(prev => prev.map(msg => {
-              if (msg.id === currentEditingMessageId) {
-                return { ...msg, content: editingContent };
-              }
-              return msg;
-            }));
-            exitEditorMode();
-          }}
-          onExit={exitEditorMode}
-          onDrop={handleCanvaDrop}
-          isDragging={isDragging}
-          draggedImage={draggedImage}
-          elementStyles={elementStyles}
-          onUpdateElementStyle={updateElementStyle}
-          selectedElement={selectedElement}
-          onSelectElement={selectElement}
-          canvasSettings={canvasSettings}
-          onUpdateCanvasSettings={setCanvasSettings}
-          onUndo={undo}
-          onRedo={redo}
-          canUndo={editorHistoryIndex > 0}
-          canRedo={editorHistoryIndex < editorHistory.length - 1}
-        />
       ) : (
         <>
-      {/* Main Header */}
-      <header className="main-header">
-        <div className="header-container">
-              <div className="header-left">
-                <h1 className="app-title">🤖 AI Blog Generator</h1>
-                <span className="app-subtitle">Powered by ReAct Framework & LangGraph</span>
-          </div>
-              <div className="header-right">
-                {/* User Indicator */}
-                {isAuthenticated && user && (
-                  <div className="user-indicator">
-                    <span className="user-icon">👤</span>
-                    <span className="user-name">{user.full_name || user.username || user.email}</span>
-                    <button 
-                      className="logout-btn" 
-                      onClick={handleLogout}
-                      title="Logout and return to login page"
-                    >
-                      ↗
-                    </button>
-                  </div>
-                )}
-                <div className="llm-selector">
-                  <label htmlFor="llm-provider">🧠 LLM Provider:</label>
-                  <select
-                    id="llm-provider"
-                    value={llmProvider}
-                    onChange={(e) => setLlmProvider(e.target.value)}
-                    disabled={isLoading}
-                  >
-                    <option value="local">Local (Ollama)</option>
-                    <option value="cloud">Cloud (Claude)</option>
-                  </select>
-              </div>
-              <div className="model-selector">
-                  <label htmlFor="model-select">🎯 Model:</label>
-                <select
-                    id="model-select"
-                  value={selectedModel}
-                  onChange={(e) => setSelectedModel(e.target.value)}
-                    disabled={isLoading || availableModels[llmProvider]?.length === 0}
-                  >
-                    {availableModels[llmProvider]?.length > 0 ? (
-                      availableModels[llmProvider].map(model => (
-                        <option key={model} value={model}>{model}</option>
-                      ))
-                    ) : (
-                      <option value="">Loading models...</option>
-                    )}
-                </select>
-              </div>
-            <div className="status-indicator">
-                  <span className="status-dot online"></span>
-              <span>Online</span>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="main-content">
-        <div className="chat-container">
-          <div className="chat-header">
-            <div className="chat-title">
-              <h2>Blog Generation Assistant</h2>
-              <p>Enter a topic and watch the AI create a comprehensive blog post using advanced reasoning</p>
-                  {welcomeMessage && (
-                    <div className="welcome-message">
-                      <span className="welcome-icon">👋</span>
-                      <span>{welcomeMessage}</span>
-                    </div>
-                  )}
-            </div>
-            <div className="chat-controls">
-              <div className="auto-scroll-toggle">
-                <label htmlFor="auto-scroll" className="toggle-label">
-                  <input
-                    type="checkbox"
-                    id="auto-scroll"
-                    checked={autoScroll}
-                    onChange={(e) => setAutoScroll(e.target.checked)}
-                    className="toggle-checkbox"
-                  />
-                  <span className="toggle-text">
-                    {autoScroll ? '📜 Auto-scroll ON' : '📜 Auto-scroll OFF'}
-                  </span>
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <div className="messages-container">
-            {messages.map((message) => (
-              <div key={message.id} className={`message ${message.type}`}>
-                <div className="message-avatar">
-                  {message.type === 'user' ? '👤' : '🤖'}
-                </div>
-                <div className="message-content">
-                      <div 
-                        className={`message-bubble ${message.isError ? 'error' : ''} ${message.isStreaming ? 'streaming' : ''}`}
-                        onDragOver={message.type === 'bot' && message.isComplete ? handleDragOver : undefined}
-                        onDragLeave={message.type === 'bot' && message.isComplete ? handleDragLeave : undefined}
-                        onDrop={message.type === 'bot' && message.isComplete ? (e) => handleDrop(e, message.id) : undefined}
+          <NavigationHeader />
+          
+          {/* Page Content Based on Navigation */}
+          {currentPage === 'profile' ? (
+            <ProfilePage 
+              onBack={() => setCurrentPage('blog')}
+              onNavigate={setCurrentPage}
+            />
+          ) : currentPage === 'editor' || isEditorMode ? (
+            <CanvaEditor 
+              content={editingContent}
+              onContentChange={setEditingContent}
+              onSave={() => {
+                setMessages(prev => prev.map(msg => {
+                  if (msg.id === currentEditingMessageId) {
+                    return { ...msg, content: editingContent };
+                  }
+                  return msg;
+                }));
+                setIsEditorMode(false);
+                setCurrentPage('blog');
+              }}
+              onExit={() => {
+                setIsEditorMode(false);
+                setCurrentPage('blog');
+              }}
+              onDrop={handleCanvaDrop}
+              isDragging={isDragging}
+              draggedImage={draggedImage}
+              elementStyles={elementStyles}
+              onUpdateElementStyle={updateElementStyle}
+              selectedElement={selectedElement}
+              onSelectElement={selectElement}
+              canvasSettings={canvasSettings}
+              onUpdateCanvasSettings={setCanvasSettings}
+              onUndo={undo}
+              onRedo={redo}
+              canUndo={editorHistoryIndex > 0}
+              canRedo={editorHistoryIndex < editorHistory.length - 1}
+            />
+          ) : (
+            // Main Blog Writing Page
+            <div className="blog-page">
+              {/* Move all your existing main content here */}
+              <header className="page-header">
+                <div className="header-container">
+                  <div className="header-controls">
+                    <div className="llm-selector">
+                      <label htmlFor="llm-provider">🧠 LLM Provider:</label>
+                      <select
+                        id="llm-provider"
+                        value={llmProvider}
+                        onChange={(e) => setLlmProvider(e.target.value)}
+                        disabled={isLoading}
                       >
-                        {/* Debug info */}
-                        {message.type === 'bot' && (
-                          <div style={{fontSize: '10px', color: '#999', marginBottom: '5px'}}>
-                            Debug: isComplete={String(message.isComplete)}, isDragging={String(isDragging)}, id={message.id}
-                          </div>
+                        <option value="local">Local (Ollama)</option>
+                        <option value="cloud">Cloud (Claude)</option>
+                      </select>
+                    </div>
+                    <div className="model-selector">
+                      <label htmlFor="model-select">🎯 Model:</label>
+                      <select
+                        id="model-select"
+                        value={selectedModel}
+                        onChange={(e) => setSelectedModel(e.target.value)}
+                        disabled={isLoading || availableModels[llmProvider]?.length === 0}
+                      >
+                        {availableModels[llmProvider]?.length > 0 ? (
+                          availableModels[llmProvider].map(model => (
+                            <option key={model} value={model}>{model}</option>
+                          ))
+                        ) : (
+                          <option value="">Loading models...</option>
                         )}
-                        
-                    {/* Streaming indicator */}
-                    {message.isStreaming && (
-                      <div className="streaming-indicator">
-                        <div className="streaming-dots">
-                          <span></span><span></span><span></span>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </header>
+
+              {/* All your existing main content */}
+              <main className="main-content">
+                <div className="chat-container">
+                  <div className="chat-header">
+                    <div className="chat-title">
+                      <h2>Blog Generation Assistant</h2>
+                      <p>Enter a topic and watch the AI create a comprehensive blog post using advanced reasoning</p>
+                          {welcomeMessage && (
+                            <div className="welcome-message">
+                              <span className="welcome-icon">👋</span>
+                              <span>{welcomeMessage}</span>
+                            </div>
+                          )}
+                    </div>
+                    <div className="chat-controls">
+                      <div className="auto-scroll-toggle">
+                        <label htmlFor="auto-scroll" className="toggle-label">
+                          <input
+                            type="checkbox"
+                            id="auto-scroll"
+                            checked={autoScroll}
+                            onChange={(e) => setAutoScroll(e.target.checked)}
+                            className="toggle-checkbox"
+                          />
+                          <span className="toggle-text">
+                            {autoScroll ? '📜 Auto-scroll ON' : '📜 Auto-scroll OFF'}
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="messages-container">
+                    {messages.map((message) => (
+                      <div key={message.id} className={`message ${message.type}`}>
+                        <div className="message-avatar">
+                          {message.type === 'user' ? '👤' : '🤖'}
                         </div>
-                        <span className="streaming-text">ReAct Agent Working...</span>
-                      </div>
-                    )}
-                    
-                    {message.type === 'bot' && message.content && (message.content.length > 200 || message.isComplete || message.isStreaming) ? 
-                      <div className="blog-content">
-                        {/* Blog metadata */}
-                        {(message.format || message.stepsToken || message.isStreaming) && (
-                          <div className="blog-metadata">
-                            {message.format && <span className="format-badge">{message.format}</span>}
-                            {message.stepsToken && <span className="steps-badge">🔄 {message.stepsToken} steps</span>}
-                            {message.isStreaming && <span className="streaming-badge">🔄 Live</span>}
-                            {message.imagesFound && <span className="images-badge">🖼️ {message.imagesFound} images</span>}
-                          </div>
-                        )}
-                        
-                        {/* Blog content */}
-                        {message.isComplete ? 
-                          <div>
-                                {formatContent(message.content, message.format, message.id)}
-                            {/* Export button for completed blogs */}
-                            <div className="export-actions">
-                                  <button 
-                                    className="editor-mode-btn"
-                                    onClick={() => enterEditorMode(message.id, message.content)}
-                                    title="Edit in Canva-style visual editor"
-                                  >
-                                    🎨 Edit in Canva Mode
-                                  </button>
-                              <button 
-                                className="export-button"
-                                onClick={() => exportToHTML(message.content, message.originalTopic || 'Blog Post')}
-                                title="Download as HTML file"
+                        <div className="message-content">
+                              <div 
+                                className={`message-bubble ${message.isError ? 'error' : ''} ${message.isStreaming ? 'streaming' : ''}`}
+                                onDragOver={message.type === 'bot' && message.isComplete ? handleDragOver : undefined}
+                                onDragLeave={message.type === 'bot' && message.isComplete ? handleDragLeave : undefined}
+                                onDrop={message.type === 'bot' && message.isComplete ? (e) => handleDrop(e, message.id) : undefined}
                               >
-                                📄 Export HTML
-                              </button>
-                            </div>
-                              </div>
-                              :
-                          <div className="streaming-content">
-                            <div className="current-thought">
-                              {message.content.split('\n').map((line, idx) => (
-                                <p key={idx} className={line.startsWith('💭') ? 'thought-line' : line.startsWith('⚡') ? 'action-line' : ''}>{line}</p>
-                              ))}
-                            </div>
+                                {/* Debug info */}
+                                {message.type === 'bot' && (
+                                  <div style={{fontSize: '10px', color: '#999', marginBottom: '5px'}}>
+                                    Debug: isComplete={String(message.isComplete)}, isDragging={String(isDragging)}, id={message.id}
+                                  </div>
+                                )}
+                                
+                            {/* Streaming indicator */}
                             {message.isStreaming && (
-                              <div className="current-step">
-                                <em>Processing action...</em>
-                              </div>
-                            )}
-                          </div>
-                        }
-                      </div>
-                      : 
-                      <p>{message.content}</p>
-                    }
-                    
-                    {/* Display reasoning trace within the message if available */}
-                    {message.reasoningTrace && message.reasoningTrace.length > 0 && (
-                      <div className="reasoning-trace-inline">
-                        <details open={message.isStreaming}>
-                          <summary>🧠 View ReAct Reasoning Process ({message.reasoningTrace.length} steps) {message.isStreaming && '(Live)'}</summary>
-                          <div className="reasoning-steps">
-                            {message.reasoningTrace.map((step, index) => (
-                              <div key={index} className={`reasoning-step ${index === message.reasoningTrace.length - 1 && message.isStreaming ? 'current-step' : ''}`}>
-                                <div className="step-header">Step {step.step}</div>
-                                <div className="thought"><strong>💭 Thought:</strong> {step.thought}</div>
-                                <div className="action"><strong>⚡ Action:</strong> {step.action} - {step.action_input}</div>
-                                <div className="observation"><strong>👁️ Observation:</strong> {step.observation}</div>
-                              </div>
-                            ))}
-                            {message.isStreaming && (
-                              <div className="reasoning-step streaming-step">
-                                <div className="step-header">Processing next step...</div>
+                              <div className="streaming-indicator">
                                 <div className="streaming-dots">
                                   <span></span><span></span><span></span>
                                 </div>
+                                <span className="streaming-text">ReAct Agent Working...</span>
+                              </div>
+                            )}
+                            
+                            {message.type === 'bot' && message.content && (message.content.length > 200 || message.isComplete || message.isStreaming) ? 
+                              <div className="blog-content">
+                                {/* Blog metadata */}
+                                {(message.format || message.stepsToken || message.isStreaming) && (
+                                  <div className="blog-metadata">
+                                    {message.format && <span className="format-badge">{message.format}</span>}
+                                    {message.stepsToken && <span className="steps-badge">🔄 {message.stepsToken} steps</span>}
+                                    {message.isStreaming && <span className="streaming-badge">🔄 Live</span>}
+                                    {message.imagesFound && <span className="images-badge">🖼️ {message.imagesFound} images</span>}
+                                  </div>
+                                )}
+                                
+                                {/* Blog content */}
+                                {message.isComplete ? 
+                                  <div>
+                                        {formatContent(message.content, message.format, message.id)}
+                                    {/* Export button for completed blogs */}
+                                    <div className="export-actions">
+                                          <button 
+                                            className="editor-mode-btn"
+                                            onClick={() => enterEditorMode(message.id, message.content)}
+                                            title="Edit in Canva-style visual editor"
+                                          >
+                                            🎨 Edit in Canva Mode
+                                          </button>
+                                      <button 
+                                        className="export-button"
+                                        onClick={() => exportToHTML(message.content, message.originalTopic || 'Blog Post')}
+                                        title="Download as HTML file"
+                                      >
+                                        📄 Export HTML
+                                      </button>
+                                    </div>
+                                      </div>
+                                      :
+                                  <div className="streaming-content">
+                                    <div className="current-thought">
+                                      {message.content.split('\n').map((line, idx) => (
+                                        <p key={idx} className={line.startsWith('💭') ? 'thought-line' : line.startsWith('⚡') ? 'action-line' : ''}>{line}</p>
+                                      ))}
+                                    </div>
+                                    {message.isStreaming && (
+                                      <div className="current-step">
+                                        <em>Processing action...</em>
+                                      </div>
+                                    )}
+                                  </div>
+                                }
+                              </div>
+                              : 
+                              <p>{message.content}</p>
+                            }
+                            
+                            {/* Display reasoning trace within the message if available */}
+                            {message.reasoningTrace && message.reasoningTrace.length > 0 && (
+                              <div className="reasoning-trace-inline">
+                                <details open={message.isStreaming}>
+                                  <summary>🧠 View ReAct Reasoning Process ({message.reasoningTrace.length} steps) {message.isStreaming && '(Live)'}</summary>
+                                  <div className="reasoning-steps">
+                                    {message.reasoningTrace.map((step, index) => (
+                                      <div key={index} className={`reasoning-step ${index === message.reasoningTrace.length - 1 && message.isStreaming ? 'current-step' : ''}`}>
+                                        <div className="step-header">Step {step.step}</div>
+                                        <div className="thought"><strong>💭 Thought:</strong> {step.thought}</div>
+                                        <div className="action"><strong>⚡ Action:</strong> {step.action} - {step.action_input}</div>
+                                        <div className="observation"><strong>👁️ Observation:</strong> {step.observation}</div>
+                                      </div>
+                                    ))}
+                                    {message.isStreaming && (
+                                      <div className="reasoning-step streaming-step">
+                                        <div className="step-header">Processing next step...</div>
+                                        <div className="streaming-dots">
+                                          <span></span><span></span><span></span>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </details>
                               </div>
                             )}
                           </div>
-                        </details>
+                          <div className="message-time">
+                            {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </div>
                       </div>
-                    )}
+                    ))}
+                    <div ref={messagesEndRef} />
                   </div>
-                  <div className="message-time">
-                    {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </div>
-                </div>
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
 
-          <div className="input-container">
-            <form onSubmit={handleSubmit} className="input-form">
-              {/* Blog Topic Input */}
-              <div className="input-wrapper main-input">
-                <input
-                  type="text"
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  placeholder="Enter a blog topic (e.g., 'AI trends 2024', 'healthy cooking tips')..."
-                  className="message-input"
-                  disabled={isLoading}
-                />
-              </div>
-              
-              {/* Advanced Options */}
-              <div className="advanced-options">
-                <div className="options-row">
-                  <div className="option-group">
-                    <label htmlFor="target-audience" className="option-label">
-                      🎯 Target Audience
-                    </label>
-                    <select
-                      id="target-audience"
-                      value={targetAudience}
-                      onChange={(e) => setTargetAudience(e.target.value)}
-                      disabled={isLoading}
-                      className="option-select"
-                    >
-                          <option value="general">General</option>
-                      <option value="professionals">Professionals</option>
-                      <option value="beginners">Beginners</option>
-                      <option value="experts">Experts</option>
-                      <option value="students">Students</option>
-                    </select>
-                  </div>
-                  
-                  <div className="option-group">
-                    <label htmlFor="tone" className="option-label">
-                      🎨 Tone
-                    </label>
-                    <select
-                      id="tone"
-                      value={tone}
-                      onChange={(e) => setTone(e.target.value)}
-                      disabled={isLoading}
-                      className="option-select"
-                    >
-                      <option value="professional">Professional</option>
-                      <option value="casual">Casual</option>
-                      <option value="friendly">Friendly</option>
-                      <option value="authoritative">Authoritative</option>
-                      <option value="conversational">Conversational</option>
-                      <option value="educational">Educational</option>
-                    </select>
-                  </div>
-                  
-                  <div className="option-group">
-                    <label htmlFor="num-sections" className="option-label">
-                      📝 Sections
-                    </label>
-                    <select
-                      id="num-sections"
-                      value={numSections}
-                      onChange={(e) => setNumSections(parseInt(e.target.value))}
-                      disabled={isLoading}
-                      className="option-select"
-                    >
-                      <option value={3}>3 Sections</option>
-                      <option value={4}>4 Sections</option>
-                      <option value={5}>5 Sections</option>
-                      <option value={6}>6 Sections</option>
-                      <option value={7}>7 Sections</option>
-                    </select>
+                  <div className="input-container">
+                    <form onSubmit={handleSubmit} className="input-form">
+                      {/* Blog Topic Input */}
+                      <div className="input-wrapper main-input">
+                        <input
+                          type="text"
+                          value={inputValue}
+                          onChange={(e) => setInputValue(e.target.value)}
+                          placeholder="Enter a blog topic (e.g., 'AI trends 2024', 'healthy cooking tips')..."
+                          className="message-input"
+                          disabled={isLoading}
+                        />
+                      </div>
+                      
+                      {/* Advanced Options */}
+                      <div className="advanced-options">
+                        <div className="options-row">
+                          <div className="option-group">
+                            <label htmlFor="target-audience" className="option-label">
+                              🎯 Target Audience
+                            </label>
+                            <select
+                              id="target-audience"
+                              value={targetAudience}
+                              onChange={(e) => setTargetAudience(e.target.value)}
+                              disabled={isLoading}
+                              className="option-select"
+                            >
+                                  <option value="general">General</option>
+                              <option value="professionals">Professionals</option>
+                              <option value="beginners">Beginners</option>
+                              <option value="experts">Experts</option>
+                              <option value="students">Students</option>
+                            </select>
+                          </div>
+                          
+                          <div className="option-group">
+                            <label htmlFor="tone" className="option-label">
+                              🎨 Tone
+                            </label>
+                            <select
+                              id="tone"
+                              value={tone}
+                              onChange={(e) => setTone(e.target.value)}
+                              disabled={isLoading}
+                              className="option-select"
+                            >
+                              <option value="professional">Professional</option>
+                              <option value="casual">Casual</option>
+                              <option value="friendly">Friendly</option>
+                              <option value="authoritative">Authoritative</option>
+                              <option value="conversational">Conversational</option>
+                              <option value="educational">Educational</option>
+                            </select>
+                          </div>
+                          
+                          <div className="option-group">
+                            <label htmlFor="num-sections" className="option-label">
+                              📝 Sections
+                            </label>
+                            <select
+                              id="num-sections"
+                              value={numSections}
+                              onChange={(e) => setNumSections(parseInt(e.target.value))}
+                              disabled={isLoading}
+                              className="option-select"
+                            >
+                              <option value={3}>3 Sections</option>
+                              <option value={4}>4 Sections</option>
+                              <option value={5}>5 Sections</option>
+                              <option value={6}>6 Sections</option>
+                              <option value={7}>7 Sections</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Submit Button */}
+                      <div className="submit-wrapper">
+                        <button 
+                          type="submit" 
+                          className="send-button enhanced"
+                          disabled={!inputValue.trim() || isLoading}
+                        >
+                          {isLoading ? (
+                            <span className="loading-content">
+                              <span className="spinner"></span>
+                              Generating...
+                            </span>
+                          ) : (
+                            <span className="submit-content">
+                              🚀 Generate Blog
+                            </span>
+                          )}
+                        </button>
+                      </div>
+                    </form>
                   </div>
                 </div>
-              </div>
-              
-              {/* Submit Button */}
-              <div className="submit-wrapper">
-                <button 
-                  type="submit" 
-                  className="send-button enhanced"
-                  disabled={!inputValue.trim() || isLoading}
-                >
-                  {isLoading ? (
-                    <span className="loading-content">
-                      <span className="spinner"></span>
-                      Generating...
-                    </span>
-                  ) : (
-                    <span className="submit-content">
-                      🚀 Generate Blog
-                    </span>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </main>
+              </main>
 
-      {/* Footer */}
-      <footer className="main-footer">
-        <div className="footer-container">
-          <div className="footer-content">
-            <div className="footer-section">
-              <h3>AI Blog Generator</h3>
-              <p>Advanced blog generation using ReAct framework with LangGraph</p>
+              {/* All your existing footer and sidebar */}
+              <ImageSidebar />
             </div>
-            <div className="footer-section">
-              <h4>Features</h4>
-              <ul>
-                <li>Real-time reasoning trace</li>
-                <li>Multiple LLM providers</li>
-                <li>HTML & Markdown output</li>
-                <li>Image integration</li>
-              </ul>
-            </div>
-            <div className="footer-section">
-              <h4>Technology</h4>
-              <ul>
-                <li>LangGraph</li>
-                <li>FastAPI</li>
-                <li>React</li>
-                <li>Ollama & Claude</li>
-              </ul>
-            </div>
-            <div className="footer-section">
-              <h4>Status</h4>
-              <div className="system-status">
-                <div className="status-item">
-                  <span className="status-label">Backend:</span>
-                  <span className="status-value online">Online</span>
-                </div>
-                <div className="status-item">
-                  <span className="status-label">Provider:</span>
-                  <span className="status-value">{llmProvider === 'cloud' ? 'Cloud (Claude)' : 'Local (Ollama)'}</span>
-                </div>
-                <div className="status-item">
-                  <span className="status-label">Model:</span>
-                  <span className="status-value">{selectedModel || 'Loading...'}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="footer-bottom">
-            <p>&copy; 2024 AI Blog Generator. Built with ❤️ using modern AI technologies.</p>
-          </div>
-        </div>
-      </footer>
-
-          {/* Image Sidebar */}
-          {/* Floating Sidebar Toggle Button */}
-          <button 
-            className="floating-sidebar-toggle"
-            onClick={() => setShowImageSidebar(!showImageSidebar)}
-            title={showImageSidebar ? "Close Image Sidebar" : "Open Image Sidebar"}
-          >
-            {showImageSidebar ? '🖼️ ×' : '🖼️ ☰'}
-          </button>
-          
-          <ImageSidebar />
+          )}
         </>
       )}
     </div>
