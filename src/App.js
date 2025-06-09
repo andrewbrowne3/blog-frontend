@@ -16,6 +16,340 @@ import './App.css';
 import LandingPage from './LandingPage';
 import LoginPage from './LoginPage';
 
+// NEW: Canva-style Editor Component
+const CanvaEditor = ({ 
+  content, 
+  onContentChange, 
+  onSave, 
+  onExit, 
+  onDrop,
+  isDragging,
+  draggedImage,
+  elementStyles,
+  onUpdateElementStyle,
+  selectedElement,
+  onSelectElement,
+  canvasSettings,
+  onUpdateCanvasSettings,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo
+}) => {
+  const [editingElementId, setEditingElementId] = useState(null);
+  
+  const handleElementClick = (e, elementId, elementType) => {
+    e.stopPropagation();
+    onSelectElement(elementId, elementType);
+  };
+
+  const handleElementDoubleClick = (e, elementId) => {
+    e.stopPropagation();
+    setEditingElementId(elementId);
+  };
+
+  const renderEditableContent = () => {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(content, 'text/html');
+    const elements = Array.from(doc.body.children);
+    
+    return elements.map((element, index) => {
+      const elementId = `element-${index}`;
+      const isSelected = selectedElement?.id === elementId;
+      const isEditing = editingElementId === elementId;
+      const styles = elementStyles[elementId] || {};
+      
+      return (
+        <div
+          key={elementId}
+          className={`canva-element ${isSelected ? 'selected' : ''} ${element.tagName.toLowerCase()}`}
+          style={{
+            position: 'relative',
+            margin: styles.margin || '10px 0',
+            padding: styles.padding || '5px',
+            fontSize: styles.fontSize || 'inherit',
+            color: styles.color || 'inherit',
+            backgroundColor: styles.backgroundColor || 'transparent',
+            border: isSelected ? '2px solid #0ea5e9' : '1px solid transparent',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            ...styles
+          }}
+          onClick={(e) => handleElementClick(e, elementId, element.tagName)}
+          onDoubleClick={(e) => handleElementDoubleClick(e, elementId)}
+          onDragOver={isDragging ? (e) => {
+            e.preventDefault();
+            e.currentTarget.classList.add('canva-drag-over');
+          } : undefined}
+          onDragLeave={isDragging ? (e) => {
+            e.currentTarget.classList.remove('canva-drag-over');
+          } : undefined}
+          onDrop={isDragging ? (e) => {
+            e.currentTarget.classList.remove('canva-drag-over');
+            onDrop(e);
+          } : undefined}
+          data-position={index}
+        >
+          {isEditing ? (
+            <div className="inline-editor">
+              <textarea
+                value={element.textContent}
+                onChange={(e) => {
+                  const newContent = content.replace(element.outerHTML, 
+                    element.outerHTML.replace(element.textContent, e.target.value)
+                  );
+                  onContentChange(newContent);
+                }}
+                onBlur={() => setEditingElementId(null)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    setEditingElementId(null);
+                  }
+                }}
+                autoFocus
+                style={{
+                  width: '100%',
+                  minHeight: '50px',
+                  border: 'none',
+                  background: 'transparent',
+                  resize: 'vertical',
+                  fontSize: 'inherit',
+                  fontFamily: 'inherit'
+                }}
+              />
+            </div>
+          ) : (
+            <div dangerouslySetInnerHTML={{ __html: element.innerHTML }} />
+          )}
+          
+          {/* Selection handles */}
+          {isSelected && (
+            <div className="selection-handles">
+              <div className="handle top-left"></div>
+              <div className="handle top-right"></div>
+              <div className="handle bottom-left"></div>
+              <div className="handle bottom-right"></div>
+            </div>
+          )}
+        </div>
+      );
+    });
+  };
+
+  return (
+    <div className="canva-editor">
+      {/* Editor Header */}
+      <div className="canva-header">
+        <div className="canva-header-left">
+          <button onClick={onExit} className="exit-btn">
+            ← Back to Chat
+          </button>
+          <h2>🎨 Canva-Style Editor</h2>
+        </div>
+        <div className="canva-header-center">
+          <button onClick={onUndo} disabled={!canUndo} className="undo-btn">
+            ↶ Undo
+          </button>
+          <button onClick={onRedo} disabled={!canRedo} className="redo-btn">
+            ↷ Redo
+          </button>
+        </div>
+        <div className="canva-header-right">
+          <button onClick={onSave} className="save-btn">
+            💾 Save Changes
+          </button>
+        </div>
+      </div>
+
+      <div className="canva-workspace">
+        {/* Left Sidebar - Properties Panel */}
+        <div className="canva-sidebar-left">
+          <div className="properties-panel">
+            <h3>Properties</h3>
+            {selectedElement ? (
+              <div className="element-properties">
+                <h4>Selected: {selectedElement.type}</h4>
+                
+                {/* Font Size */}
+                <div className="property-group">
+                  <label>Font Size</label>
+                  <input
+                    type="range"
+                    min="12"
+                    max="48"
+                    value={parseInt(elementStyles[selectedElement.id]?.fontSize) || 16}
+                    onChange={(e) => onUpdateElementStyle(selectedElement.id, 'fontSize', `${e.target.value}px`)}
+                  />
+                  <span>{parseInt(elementStyles[selectedElement.id]?.fontSize) || 16}px</span>
+                </div>
+
+                {/* Text Color */}
+                <div className="property-group">
+                  <label>Text Color</label>
+                  <input
+                    type="color"
+                    value={elementStyles[selectedElement.id]?.color || '#000000'}
+                    onChange={(e) => onUpdateElementStyle(selectedElement.id, 'color', e.target.value)}
+                  />
+                </div>
+
+                {/* Background Color */}
+                <div className="property-group">
+                  <label>Background</label>
+                  <input
+                    type="color"
+                    value={elementStyles[selectedElement.id]?.backgroundColor || '#ffffff'}
+                    onChange={(e) => onUpdateElementStyle(selectedElement.id, 'backgroundColor', e.target.value)}
+                  />
+                </div>
+
+                {/* Margin */}
+                <div className="property-group">
+                  <label>Margin</label>
+                  <input
+                    type="text"
+                    placeholder="10px 0"
+                    value={elementStyles[selectedElement.id]?.margin || ''}
+                    onChange={(e) => onUpdateElementStyle(selectedElement.id, 'margin', e.target.value)}
+                  />
+                </div>
+
+                {/* Padding */}
+                <div className="property-group">
+                  <label>Padding</label>
+                  <input
+                    type="text"
+                    placeholder="5px"
+                    value={elementStyles[selectedElement.id]?.padding || ''}
+                    onChange={(e) => onUpdateElementStyle(selectedElement.id, 'padding', e.target.value)}
+                  />
+                </div>
+              </div>
+            ) : (
+              <p>Select an element to edit its properties</p>
+            )}
+          </div>
+        </div>
+
+        {/* Main Canvas */}
+        <div className="canva-canvas">
+          <div 
+            className="canvas-content"
+            style={{
+              backgroundColor: canvasSettings.backgroundColor,
+              padding: canvasSettings.padding,
+              maxWidth: canvasSettings.maxWidth,
+              fontFamily: canvasSettings.fontFamily,
+              margin: '0 auto',
+              minHeight: '600px',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px'
+            }}
+            onClick={() => onSelectElement(null, null)} // Deselect when clicking canvas
+          >
+            {renderEditableContent()}
+            
+            {/* Drop zones for images */}
+            {isDragging && (
+              <>
+                <div 
+                  className="canva-drop-zone start"
+                  data-position="start"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.add('canva-drag-over');
+                  }}
+                  onDragLeave={(e) => {
+                    e.currentTarget.classList.remove('canva-drag-over');
+                  }}
+                  onDrop={onDrop}
+                >
+                  <span>📍 Drop image at start</span>
+                </div>
+                <div 
+                  className="canva-drop-zone end"
+                  data-position="end"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.add('canva-drag-over');
+                  }}
+                  onDragLeave={(e) => {
+                    e.currentTarget.classList.remove('canva-drag-over');
+                  }}
+                  onDrop={onDrop}
+                >
+                  <span>📍 Drop image at end</span>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Right Sidebar - Canvas Settings */}
+        <div className="canva-sidebar-right">
+          <div className="canvas-settings">
+            <h3>Canvas Settings</h3>
+            
+            <div className="setting-group">
+              <label>Background Color</label>
+              <input
+                type="color"
+                value={canvasSettings.backgroundColor}
+                onChange={(e) => onUpdateCanvasSettings(prev => ({
+                  ...prev,
+                  backgroundColor: e.target.value
+                }))}
+              />
+            </div>
+
+            <div className="setting-group">
+              <label>Max Width</label>
+              <input
+                type="text"
+                value={canvasSettings.maxWidth}
+                onChange={(e) => onUpdateCanvasSettings(prev => ({
+                  ...prev,
+                  maxWidth: e.target.value
+                }))}
+              />
+            </div>
+
+            <div className="setting-group">
+              <label>Padding</label>
+              <input
+                type="text"
+                value={canvasSettings.padding}
+                onChange={(e) => onUpdateCanvasSettings(prev => ({
+                  ...prev,
+                  padding: e.target.value
+                }))}
+              />
+            </div>
+
+            <div className="setting-group">
+              <label>Font Family</label>
+              <select
+                value={canvasSettings.fontFamily}
+                onChange={(e) => onUpdateCanvasSettings(prev => ({
+                  ...prev,
+                  fontFamily: e.target.value
+                }))}
+              >
+                <option value="Inter, sans-serif">Inter</option>
+                <option value="Arial, sans-serif">Arial</option>
+                <option value="Georgia, serif">Georgia</option>
+                <option value="'Times New Roman', serif">Times New Roman</option>
+                <option value="'Courier New', monospace">Courier New</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 function App() {
   // Redux state
   const dispatch = useDispatch();
@@ -1545,6 +1879,36 @@ function App() {
         />
       ) : authMode === 'register' ? (
         <LandingPage onComplete={handleLandingComplete} onSwitchToLogin={handleSwitchToLogin} />
+      ) : isEditorMode ? (
+        // NEW: Canva-style Editor Mode
+        <CanvaEditor 
+          content={editingContent}
+          onContentChange={setEditingContent}
+          onSave={() => {
+            // Save the edited content back to the message
+            setMessages(prev => prev.map(msg => {
+              if (msg.id === currentEditingMessageId) {
+                return { ...msg, content: editingContent };
+              }
+              return msg;
+            }));
+            exitEditorMode();
+          }}
+          onExit={exitEditorMode}
+          onDrop={handleCanvaDrop}
+          isDragging={isDragging}
+          draggedImage={draggedImage}
+          elementStyles={elementStyles}
+          onUpdateElementStyle={updateElementStyle}
+          selectedElement={selectedElement}
+          onSelectElement={selectElement}
+          canvasSettings={canvasSettings}
+          onUpdateCanvasSettings={setCanvasSettings}
+          onUndo={undo}
+          onRedo={redo}
+          canUndo={editorHistoryIndex > 0}
+          canRedo={editorHistoryIndex < editorHistory.length - 1}
+        />
       ) : (
         <>
       {/* Main Header */}
