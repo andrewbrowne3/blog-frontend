@@ -143,34 +143,34 @@ const CanvaEditor = ({
   };
 
   return (
-    <div className="canva-editor">
+    <div className="canva-editor" id="korean-canva-editor">
       {/* Editor Header */}
-      <div className="canva-header">
+      <div className="canva-header" id="korean-canva-header">
         <div className="canva-header-left">
-          <button onClick={onExit} className="exit-btn">
+          <button onClick={onExit} className="exit-btn" id="korean-exit-btn">
             ← Back to Chat
           </button>
           <h2>🎨 Canva-Style Editor</h2>
         </div>
         <div className="canva-header-center">
-          <button onClick={onUndo} disabled={!canUndo} className="undo-btn">
+          <button onClick={onUndo} disabled={!canUndo} className="undo-btn" id="korean-undo-btn">
             ↶ Undo
           </button>
-          <button onClick={onRedo} disabled={!canRedo} className="redo-btn">
+          <button onClick={onRedo} disabled={!canRedo} className="redo-btn" id="korean-redo-btn">
             ↷ Redo
           </button>
         </div>
         <div className="canva-header-right">
-          <button onClick={onSave} className="save-btn">
+          <button onClick={onSave} className="save-btn" id="korean-save-btn">
             💾 Save Changes
           </button>
         </div>
       </div>
 
-      <div className="canva-workspace">
+      <div className="canva-workspace" id="korean-canva-workspace">
         {/* Left Sidebar - Properties Panel */}
-        <div className="canva-sidebar-left">
-          <div className="properties-panel">
+        <div className="canva-sidebar-left" id="korean-sidebar-left">
+          <div className="properties-panel" id="korean-properties-panel">
             <h3>Properties</h3>
             {selectedElement ? (
               <div className="element-properties">
@@ -238,9 +238,10 @@ const CanvaEditor = ({
         </div>
 
         {/* Main Canvas */}
-        <div className="canva-canvas">
+        <div className="canva-canvas" id="korean-canva-canvas">
           <div 
             className="canvas-content"
+            id="korean-canvas-content"
             style={{
               backgroundColor: canvasSettings.backgroundColor,
               padding: canvasSettings.padding,
@@ -253,7 +254,12 @@ const CanvaEditor = ({
             }}
             onClick={() => onSelectElement(null, null)} // Deselect when clicking canvas
           >
-            {renderEditableContent()}
+            {/* Korean Blog Content Wrapper - Separate ID namespace for blog content */}
+            <div className="korean-blog-wrapper" id="blog-content-container">
+              <div className="blog-content-inner" id="blog-rendered-content">
+                {renderEditableContent()}
+              </div>
+            </div>
             
             {/* Drop zones for images */}
             {isDragging && (
@@ -292,8 +298,8 @@ const CanvaEditor = ({
         </div>
 
         {/* Right Sidebar - Canvas Settings */}
-        <div className="canva-sidebar-right">
-          <div className="canvas-settings">
+        <div className="canva-sidebar-right" id="korean-sidebar-right">
+          <div className="canvas-settings" id="korean-canvas-settings">
             <h3>Canvas Settings</h3>
             
             <div className="setting-group">
@@ -459,6 +465,10 @@ function App() {
   // NEW: Navigation state
   const [currentPage, setCurrentPage] = useState('blog'); // 'blog', 'profile', 'editor', 'saved'
   
+  // NEW: Blog data state
+  const [savedBlogs, setSavedBlogs] = useState([]);
+  const [userBlogs] = useState([]);
+  
   const messagesEndRef = useRef(null);
 
   // NEW: Database connection functions
@@ -511,23 +521,8 @@ function App() {
         // Handle the response format - it should be a BlogListResponse with blogs array
         const blogs = result.blogs || [];
         
-        // Convert saved blogs back to message format and add to messages
-        const blogMessages = blogs.map((blog, index) => ({
-          id: Date.now() + index,
-          type: 'bot',
-          content: blog.content,
-          topic: blog.topic || blog.title,
-          threadId: blog.thread_id,
-          timestamp: new Date(blog.created_at || Date.now()),
-          savedBlogId: blog.id
-        }));
-
-        if (blogMessages.length > 0) {
-          setMessages(prev => [...prev, ...blogMessages]);
-          alert(`Loaded ${blogMessages.length} saved blogs!`);
-        } else {
-          alert('No saved blogs found.');
-        }
+        // Set the saved blogs state
+        setSavedBlogs(blogs);
         
         return blogs;
       } else {
@@ -1733,17 +1728,42 @@ function App() {
   };
 
   const handleLoadSavedBlogs = async () => {
-    const count = await loadSavedBlogs();
-    if (count > 0) {
-      alert(`Loaded ${count} saved blogs!`);
-    } else {
-      alert('No saved blogs found.');
+    try {
+      await loadSavedBlogs();
+    } catch (error) {
+      console.error('Error loading saved blogs:', error);
     }
+  };
+
+  const handleEditBlog = (blog) => {
+    // Set the blog content for editing
+    setEditingContent(blog.content || blog.html_content || '');
+    
+    // Create a new message if it doesn't exist
+    const newMessage = {
+      id: Date.now(),
+      type: 'bot',
+      content: blog.content || blog.html_content || '',
+      isComplete: true,
+      format: 'HTML',
+      originalTopic: blog.title || 'Saved Blog'
+    };
+    
+    // Add the message to the messages array
+    setMessages(prev => [...prev, newMessage]);
+    setCurrentEditingMessageId(newMessage.id);
+    
+    // Switch to editor mode
+    setIsEditorMode(true);
+    setCurrentPage('editor');
+    
+    // Save current state for undo/redo
+    saveToHistory();
   };
 
   // Enhanced Image Sidebar Component
   const ImageSidebar = () => {
-    return (
+  return (
       <div className={`image-sidebar ${showImageSidebar ? 'open' : ''}`}>
         <div className="sidebar-header">
           <h3>🎨 AI Images</h3>
@@ -1864,8 +1884,8 @@ function App() {
               <div className="sections-list">
                 {blogSections.map((section) => (
                   <label key={section.id} className="section-checkbox">
-                    <input
-                      type="checkbox"
+                  <input
+                    type="checkbox"
                       checked={selectedSections.has(section.id)}
                       onChange={(e) => {
                         const newSelected = new Set(selectedSections);
@@ -1881,7 +1901,7 @@ function App() {
                     <span className="section-level">{section.level}</span>
                   </label>
                 ))}
-              </div>
+                </div>
               <button
                 className="generate-selected-btn"
                 onClick={() => generateImagesForSelectedSections(
@@ -1906,7 +1926,7 @@ function App() {
             <div className="no-blog-message">
               <p>📝 Generate a blog first to create contextual DALL-E images for specific sections.</p>
               <p>💡 Or use Google Images search above to find existing images!</p>
-            </div>
+              </div>
           )}
         </div>
 
@@ -1950,13 +1970,13 @@ function App() {
               </div>
             </div>
           ))}
-        </div>
+              </div>
         
         {generatedImages.length === 0 && googleImages.length === 0 && !isGeneratingImages && !isSearchingGoogleImages && blogSections.length === 0 && (
           <div className="empty-state">
             <p>🖼️ No images yet</p>
             <p>Generate a blog or search Google Images!</p>
-          </div>
+            </div>
         )}
       </div>
     );
@@ -1981,12 +2001,12 @@ function App() {
         </div>
         
         <div className="nav-center">
-          <button 
+            <button 
             className={`nav-button ${currentPage === 'blog' ? 'active' : ''}`}
             onClick={() => setCurrentPage('blog')}
-          >
+            >
             ✍️ Blog Writer
-          </button>
+            </button>
           <button 
             className={`nav-button ${currentPage === 'profile' ? 'active' : ''}`}
             onClick={() => setCurrentPage('profile')}
@@ -2008,7 +2028,7 @@ function App() {
               🎨 Editor
             </button>
           )}
-        </div>
+            </div>
         
         <div className="nav-right">
           {user && (
@@ -2056,6 +2076,11 @@ function App() {
             <ProfilePage 
               onBack={() => setCurrentPage('blog')}
               onNavigate={setCurrentPage}
+              onEditBlog={handleEditBlog}
+              savedBlogs={savedBlogs}
+              onLoadSavedBlogs={handleLoadSavedBlogs}
+              user={user}
+              userBlogs={userBlogs}
             />
           ) : currentPage === 'editor' || isEditorMode ? (
             <CanvaEditor 
@@ -2125,49 +2150,49 @@ function App() {
                         )}
                       </select>
                     </div>
-                  </div>
-                </div>
-              </header>
+          </div>
+        </div>
+      </header>
 
               {/* All your existing main content */}
-              <main className="main-content">
-                <div className="chat-container">
-                  <div className="chat-header">
-                    <div className="chat-title">
-                      <h2>Blog Generation Assistant</h2>
-                      <p>Enter a topic and watch the AI create a comprehensive blog post using advanced reasoning</p>
+      <main className="main-content">
+        <div className="chat-container">
+          <div className="chat-header">
+            <div className="chat-title">
+              <h2>Blog Generation Assistant</h2>
+              <p>Enter a topic and watch the AI create a comprehensive blog post using advanced reasoning</p>
                           {welcomeMessage && (
                             <div className="welcome-message">
                               <span className="welcome-icon">👋</span>
                               <span>{welcomeMessage}</span>
                             </div>
                           )}
-                    </div>
-                    <div className="chat-controls">
-                      <div className="auto-scroll-toggle">
-                        <label htmlFor="auto-scroll" className="toggle-label">
-                          <input
-                            type="checkbox"
-                            id="auto-scroll"
-                            checked={autoScroll}
-                            onChange={(e) => setAutoScroll(e.target.checked)}
-                            className="toggle-checkbox"
-                          />
-                          <span className="toggle-text">
-                            {autoScroll ? '📜 Auto-scroll ON' : '📜 Auto-scroll OFF'}
-                          </span>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
+            </div>
+            <div className="chat-controls">
+              <div className="auto-scroll-toggle">
+                <label htmlFor="auto-scroll" className="toggle-label">
+                  <input
+                    type="checkbox"
+                    id="auto-scroll"
+                    checked={autoScroll}
+                    onChange={(e) => setAutoScroll(e.target.checked)}
+                    className="toggle-checkbox"
+                  />
+                  <span className="toggle-text">
+                    {autoScroll ? '📜 Auto-scroll ON' : '📜 Auto-scroll OFF'}
+                  </span>
+                </label>
+              </div>
+            </div>
+          </div>
 
-                  <div className="messages-container">
-                    {messages.map((message) => (
-                      <div key={message.id} className={`message ${message.type}`}>
-                        <div className="message-avatar">
-                          {message.type === 'user' ? '👤' : '🤖'}
-                        </div>
-                        <div className="message-content">
+          <div className="messages-container">
+            {messages.map((message) => (
+              <div key={message.id} className={`message ${message.type}`}>
+                <div className="message-avatar">
+                  {message.type === 'user' ? '👤' : '🤖'}
+                </div>
+                <div className="message-content">
                               <div 
                                 className={`message-bubble ${message.isError ? 'error' : ''} ${message.isStreaming ? 'streaming' : ''}`}
                                 onDragOver={message.type === 'bot' && message.isComplete ? handleDragOver : undefined}
@@ -2181,34 +2206,34 @@ function App() {
                                   </div>
                                 )}
                                 
-                            {/* Streaming indicator */}
-                            {message.isStreaming && (
-                              <div className="streaming-indicator">
-                                <div className="streaming-dots">
-                                  <span></span><span></span><span></span>
-                                </div>
-                                <span className="streaming-text">ReAct Agent Working...</span>
-                              </div>
-                            )}
-                            
-                            {message.type === 'bot' && message.content && (message.content.length > 200 || message.isComplete || message.isStreaming) ? 
-                              <div className="blog-content">
-                                {/* Blog metadata */}
-                                {(message.format || message.stepsToken || message.isStreaming) && (
-                                  <div className="blog-metadata">
-                                    {message.format && <span className="format-badge">{message.format}</span>}
-                                    {message.stepsToken && <span className="steps-badge">🔄 {message.stepsToken} steps</span>}
-                                    {message.isStreaming && <span className="streaming-badge">🔄 Live</span>}
-                                    {message.imagesFound && <span className="images-badge">🖼️ {message.imagesFound} images</span>}
-                                  </div>
-                                )}
-                                
-                                {/* Blog content */}
-                                {message.isComplete ? 
-                                  <div>
+                    {/* Streaming indicator */}
+                    {message.isStreaming && (
+                      <div className="streaming-indicator">
+                        <div className="streaming-dots">
+                          <span></span><span></span><span></span>
+                        </div>
+                        <span className="streaming-text">ReAct Agent Working...</span>
+                      </div>
+                    )}
+                    
+                    {message.type === 'bot' && message.content && (message.content.length > 200 || message.isComplete || message.isStreaming) ? 
+                      <div className="blog-content">
+                        {/* Blog metadata */}
+                        {(message.format || message.stepsToken || message.isStreaming) && (
+                          <div className="blog-metadata">
+                            {message.format && <span className="format-badge">{message.format}</span>}
+                            {message.stepsToken && <span className="steps-badge">🔄 {message.stepsToken} steps</span>}
+                            {message.isStreaming && <span className="streaming-badge">🔄 Live</span>}
+                            {message.imagesFound && <span className="images-badge">🖼️ {message.imagesFound} images</span>}
+                          </div>
+                        )}
+                        
+                        {/* Blog content */}
+                        {message.isComplete ? 
+                          <div>
                                         {formatContent(message.content, message.format, message.id)}
-                                    {/* Export button for completed blogs */}
-                                    <div className="export-actions">
+                            {/* Export button for completed blogs */}
+                            <div className="export-actions">
                                           <button 
                                             className="editor-mode-btn"
                                             onClick={() => enterEditorMode(message.id, message.content)}
@@ -2216,170 +2241,170 @@ function App() {
                                           >
                                             🎨 Edit in Canva Mode
                                           </button>
-                                      <button 
-                                        className="export-button"
-                                        onClick={() => exportToHTML(message.content, message.originalTopic || 'Blog Post')}
-                                        title="Download as HTML file"
-                                      >
-                                        📄 Export HTML
-                                      </button>
-                                    </div>
+                              <button 
+                                className="export-button"
+                                onClick={() => exportToHTML(message.content, message.originalTopic || 'Blog Post')}
+                                title="Download as HTML file"
+                              >
+                                📄 Export HTML
+                              </button>
+                            </div>
                                       </div>
                                       :
-                                  <div className="streaming-content">
-                                    <div className="current-thought">
-                                      {message.content.split('\n').map((line, idx) => (
-                                        <p key={idx} className={line.startsWith('💭') ? 'thought-line' : line.startsWith('⚡') ? 'action-line' : ''}>{line}</p>
-                                      ))}
-                                    </div>
-                                    {message.isStreaming && (
-                                      <div className="current-step">
-                                        <em>Processing action...</em>
-                                      </div>
-                                    )}
-                                  </div>
-                                }
-                              </div>
-                              : 
-                              <p>{message.content}</p>
-                            }
-                            
-                            {/* Display reasoning trace within the message if available */}
-                            {message.reasoningTrace && message.reasoningTrace.length > 0 && (
-                              <div className="reasoning-trace-inline">
-                                <details open={message.isStreaming}>
-                                  <summary>🧠 View ReAct Reasoning Process ({message.reasoningTrace.length} steps) {message.isStreaming && '(Live)'}</summary>
-                                  <div className="reasoning-steps">
-                                    {message.reasoningTrace.map((step, index) => (
-                                      <div key={index} className={`reasoning-step ${index === message.reasoningTrace.length - 1 && message.isStreaming ? 'current-step' : ''}`}>
-                                        <div className="step-header">Step {step.step}</div>
-                                        <div className="thought"><strong>💭 Thought:</strong> {step.thought}</div>
-                                        <div className="action"><strong>⚡ Action:</strong> {step.action} - {step.action_input}</div>
-                                        <div className="observation"><strong>👁️ Observation:</strong> {step.observation}</div>
-                                      </div>
-                                    ))}
-                                    {message.isStreaming && (
-                                      <div className="reasoning-step streaming-step">
-                                        <div className="step-header">Processing next step...</div>
-                                        <div className="streaming-dots">
-                                          <span></span><span></span><span></span>
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-                                </details>
+                          <div className="streaming-content">
+                            <div className="current-thought">
+                              {message.content.split('\n').map((line, idx) => (
+                                <p key={idx} className={line.startsWith('💭') ? 'thought-line' : line.startsWith('⚡') ? 'action-line' : ''}>{line}</p>
+                              ))}
+                            </div>
+                            {message.isStreaming && (
+                              <div className="current-step">
+                                <em>Processing action...</em>
                               </div>
                             )}
                           </div>
-                          <div className="message-time">
-                            {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </div>
-                        </div>
+                        }
                       </div>
-                    ))}
-                    <div ref={messagesEndRef} />
+                      : 
+                      <p>{message.content}</p>
+                    }
+                    
+                    {/* Display reasoning trace within the message if available */}
+                    {message.reasoningTrace && message.reasoningTrace.length > 0 && (
+                      <div className="reasoning-trace-inline">
+                        <details open={message.isStreaming}>
+                          <summary>🧠 View ReAct Reasoning Process ({message.reasoningTrace.length} steps) {message.isStreaming && '(Live)'}</summary>
+                          <div className="reasoning-steps">
+                            {message.reasoningTrace.map((step, index) => (
+                              <div key={index} className={`reasoning-step ${index === message.reasoningTrace.length - 1 && message.isStreaming ? 'current-step' : ''}`}>
+                                <div className="step-header">Step {step.step}</div>
+                                <div className="thought"><strong>💭 Thought:</strong> {step.thought}</div>
+                                <div className="action"><strong>⚡ Action:</strong> {step.action} - {step.action_input}</div>
+                                <div className="observation"><strong>👁️ Observation:</strong> {step.observation}</div>
+                              </div>
+                            ))}
+                            {message.isStreaming && (
+                              <div className="reasoning-step streaming-step">
+                                <div className="step-header">Processing next step...</div>
+                                <div className="streaming-dots">
+                                  <span></span><span></span><span></span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </details>
+                      </div>
+                    )}
                   </div>
-
-                  <div className="input-container">
-                    <form onSubmit={handleSubmit} className="input-form">
-                      {/* Blog Topic Input */}
-                      <div className="input-wrapper main-input">
-                        <input
-                          type="text"
-                          value={inputValue}
-                          onChange={(e) => setInputValue(e.target.value)}
-                          placeholder="Enter a blog topic (e.g., 'AI trends 2024', 'healthy cooking tips')..."
-                          className="message-input"
-                          disabled={isLoading}
-                        />
-                      </div>
-                      
-                      {/* Advanced Options */}
-                      <div className="advanced-options">
-                        <div className="options-row">
-                          <div className="option-group">
-                            <label htmlFor="target-audience" className="option-label">
-                              🎯 Target Audience
-                            </label>
-                            <select
-                              id="target-audience"
-                              value={targetAudience}
-                              onChange={(e) => setTargetAudience(e.target.value)}
-                              disabled={isLoading}
-                              className="option-select"
-                            >
-                                  <option value="general">General</option>
-                              <option value="professionals">Professionals</option>
-                              <option value="beginners">Beginners</option>
-                              <option value="experts">Experts</option>
-                              <option value="students">Students</option>
-                            </select>
-                          </div>
-                          
-                          <div className="option-group">
-                            <label htmlFor="tone" className="option-label">
-                              🎨 Tone
-                            </label>
-                            <select
-                              id="tone"
-                              value={tone}
-                              onChange={(e) => setTone(e.target.value)}
-                              disabled={isLoading}
-                              className="option-select"
-                            >
-                              <option value="professional">Professional</option>
-                              <option value="casual">Casual</option>
-                              <option value="friendly">Friendly</option>
-                              <option value="authoritative">Authoritative</option>
-                              <option value="conversational">Conversational</option>
-                              <option value="educational">Educational</option>
-                            </select>
-                          </div>
-                          
-                          <div className="option-group">
-                            <label htmlFor="num-sections" className="option-label">
-                              📝 Sections
-                            </label>
-                            <select
-                              id="num-sections"
-                              value={numSections}
-                              onChange={(e) => setNumSections(parseInt(e.target.value))}
-                              disabled={isLoading}
-                              className="option-select"
-                            >
-                              <option value={3}>3 Sections</option>
-                              <option value={4}>4 Sections</option>
-                              <option value={5}>5 Sections</option>
-                              <option value={6}>6 Sections</option>
-                              <option value={7}>7 Sections</option>
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {/* Submit Button */}
-                      <div className="submit-wrapper">
-                        <button 
-                          type="submit" 
-                          className="send-button enhanced"
-                          disabled={!inputValue.trim() || isLoading}
-                        >
-                          {isLoading ? (
-                            <span className="loading-content">
-                              <span className="spinner"></span>
-                              Generating...
-                            </span>
-                          ) : (
-                            <span className="submit-content">
-                              🚀 Generate Blog
-                            </span>
-                          )}
-                        </button>
-                      </div>
-                    </form>
+                  <div className="message-time">
+                    {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </div>
                 </div>
-              </main>
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+
+          <div className="input-container">
+            <form onSubmit={handleSubmit} className="input-form">
+              {/* Blog Topic Input */}
+              <div className="input-wrapper main-input">
+                <input
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  placeholder="Enter a blog topic (e.g., 'AI trends 2024', 'healthy cooking tips')..."
+                  className="message-input"
+                  disabled={isLoading}
+                />
+              </div>
+              
+              {/* Advanced Options */}
+              <div className="advanced-options">
+                <div className="options-row">
+                  <div className="option-group">
+                    <label htmlFor="target-audience" className="option-label">
+                      🎯 Target Audience
+                    </label>
+                    <select
+                      id="target-audience"
+                      value={targetAudience}
+                      onChange={(e) => setTargetAudience(e.target.value)}
+                      disabled={isLoading}
+                      className="option-select"
+                    >
+                                  <option value="general">General</option>
+                      <option value="professionals">Professionals</option>
+                      <option value="beginners">Beginners</option>
+                      <option value="experts">Experts</option>
+                      <option value="students">Students</option>
+                    </select>
+                  </div>
+                  
+                  <div className="option-group">
+                    <label htmlFor="tone" className="option-label">
+                      🎨 Tone
+                    </label>
+                    <select
+                      id="tone"
+                      value={tone}
+                      onChange={(e) => setTone(e.target.value)}
+                      disabled={isLoading}
+                      className="option-select"
+                    >
+                      <option value="professional">Professional</option>
+                      <option value="casual">Casual</option>
+                      <option value="friendly">Friendly</option>
+                      <option value="authoritative">Authoritative</option>
+                      <option value="conversational">Conversational</option>
+                      <option value="educational">Educational</option>
+                    </select>
+                  </div>
+                  
+                  <div className="option-group">
+                    <label htmlFor="num-sections" className="option-label">
+                      📝 Sections
+                    </label>
+                    <select
+                      id="num-sections"
+                      value={numSections}
+                      onChange={(e) => setNumSections(parseInt(e.target.value))}
+                      disabled={isLoading}
+                      className="option-select"
+                    >
+                      <option value={3}>3 Sections</option>
+                      <option value={4}>4 Sections</option>
+                      <option value={5}>5 Sections</option>
+                      <option value={6}>6 Sections</option>
+                      <option value={7}>7 Sections</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Submit Button */}
+              <div className="submit-wrapper">
+                <button 
+                  type="submit" 
+                  className="send-button enhanced"
+                  disabled={!inputValue.trim() || isLoading}
+                >
+                  {isLoading ? (
+                    <span className="loading-content">
+                      <span className="spinner"></span>
+                      Generating...
+                    </span>
+                  ) : (
+                    <span className="submit-content">
+                      🚀 Generate Blog
+                    </span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </main>
 
               {/* All your existing footer and sidebar */}
               <ImageSidebar />
