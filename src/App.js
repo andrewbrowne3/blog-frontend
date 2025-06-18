@@ -2410,6 +2410,8 @@ function App() {
   // Add missing state variables for Canva editor
   const [editingContent, setEditingContent] = useState('');
   const [currentEditingMessageId, setCurrentEditingMessageId] = useState(null);
+  // 🔧 NEW: Track which blog is being edited for updates vs creates
+  const [currentEditingBlogId, setCurrentEditingBlogId] = useState(null);
   
   // NEW: Navigation state
   const [currentPage, setCurrentPage] = useState('blog'); // 'blog', 'profile', 'editor', 'saved'
@@ -2420,24 +2422,95 @@ function App() {
   
   const messagesEndRef = useRef(null);
 
-  // NEW: Database connection functions
-  const saveBlogToDatabase = async (blogContent, title) => {
+  // 🔧 ENHANCED: Database connection functions with update support
+  const saveBlogToDatabase = async (blogContent, title, blogId = null) => {
     if (!user || !tokens?.access_token) {
       alert('Please log in to save blogs');
       return;
     }
 
-    // For now, show a message that this feature is coming soon
-    // The backend currently only supports saving blogs that were generated through the AI system
-    alert('Blog saving from the frontend is not yet implemented. This feature requires backend updates to support direct blog saving from the frontend interface.');
-    
-    // TODO: Implement direct blog saving once backend endpoint is available
-    // This would require either:
-    // 1. A new endpoint like /api/blog/save-direct that accepts blog content directly
-    // 2. Or modifying the existing /api/blog/save endpoint to work without thread state
-    
-    console.log('Blog content to save:', { title, content: blogContent });
-    return null;
+    try {
+      const isUpdate = blogId !== null;
+      console.log(`💾 ${isUpdate ? 'Updating' : 'Creating'} blog...`, { 
+        title, 
+        contentLength: blogContent.length,
+        blogId: isUpdate ? blogId : 'new'
+      });
+      
+      if (isUpdate) {
+        // UPDATE existing blog using PUT
+        const updateRequest = {
+          title: title || 'Untitled Blog',
+          content: blogContent
+        };
+
+        const response = await fetch(getApiUrl(`/api/blog/saved/${blogId}`), {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${tokens.access_token}`
+          },
+          body: JSON.stringify(updateRequest)
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log('✅ Blog updated successfully:', result);
+          
+          // Show success message
+          alert(`✅ Blog "${title}" updated successfully!`);
+          
+          // Reload saved blogs to update the list
+          await loadSavedBlogs();
+          
+          return blogId; // Return the same ID for updates
+        } else {
+          const errorText = await response.text();
+          console.error('❌ Failed to update blog:', response.status, errorText);
+          alert(`Failed to update blog: ${response.status} - ${errorText}`);
+          return null;
+        }
+      } else {
+        // CREATE new blog using POST
+        const saveRequest = {
+          title: title || 'Untitled Blog',
+          content: blogContent,
+          thread_id: `frontend-${Date.now()}`,
+          topic: title || 'Blog Post'
+        };
+
+        const response = await fetch(getApiUrl('/api/blog/saved'), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${tokens.access_token}`
+          },
+          body: JSON.stringify(saveRequest)
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log('✅ Blog created successfully:', result);
+          
+          // Show success message
+          alert(`✅ Blog "${title}" created successfully!`);
+          
+          // Reload saved blogs to update the list
+          await loadSavedBlogs();
+          
+          return result.blog_id;
+        } else {
+          const errorText = await response.text();
+          console.error('❌ Failed to create blog:', response.status, errorText);
+          alert(`Failed to create blog: ${response.status} - ${errorText}`);
+          return null;
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error saving blog:', error);
+      alert(`Error saving blog: ${error.message}`);
+      return null;
+    }
   };
 
   const loadSavedBlogs = async () => {
@@ -2454,8 +2527,8 @@ function App() {
     }
 
     try {
-      // Use the correct blog saved endpoint with user_id parameter
-      const response = await fetch(getApiUrl(`/api/blog/saved?user_id=${user.id}`), {
+      // Use the proper API endpoint
+      const response = await fetch(getApiUrl('/api/blog/saved'), {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -3590,14 +3663,19 @@ function App() {
 
   // NEW: Canva-style editor functions
   const enterEditorMode = (messageId, content) => {
-    setEditingContent(content);
     setCurrentEditingMessageId(messageId);
+    setEditingContent(content);
     setIsEditorMode(true);
+    setCurrentPage('editor');
+    
+    // 🔧 NEW: Clear blog ID for new blogs (not loaded from saved blogs)
+    setCurrentEditingBlogId(null);
     
     // Analyze blog sections for image generation
     const sections = analyzeBlogSections(content);
     setBlogSections(sections);
-    setCurrentPage('editor');
+    
+    saveToHistory();
   };
 
   const saveToHistory = () => {
@@ -3750,10 +3828,14 @@ function App() {
     }
   };
 
+  // 🔧 ENHANCED: handleEditBlog with blog ID tracking
   const handleEditBlog = (blog) => {
     // Set the blog content for editing
     const blogContent = blog.content || blog.html_content || '';
     setEditingContent(blogContent);
+    
+    // 🔧 NEW: Store the blog ID for updates
+    setCurrentEditingBlogId(blog.id);
     
     // Create a new message if it doesn't exist
     const newMessage = {
@@ -3762,14 +3844,18 @@ function App() {
       content: blogContent,
       isComplete: true,
       format: 'HTML',
-      originalTopic: blog.title || 'Saved Blog'
+      originalTopic: blog.title || 'Saved Blog',
+      // 🔧 NEW: Store blog ID in message for reference
+      blogId: blog.id,
+      // 🔧 FIX: Add timestamp to prevent undefined error
+      timestamp: new Date()
     };
     
     // Add the message to the messages array
     setMessages(prev => [...prev, newMessage]);
     setCurrentEditingMessageId(newMessage.id);
     
-    // Analyze blog sections for image generation (THIS WAS MISSING!)
+    // Analyze blog sections for image generation
     const sections = analyzeBlogSections(blogContent);
     setBlogSections(sections);
     
@@ -4265,19 +4351,45 @@ function App() {
               <CanvaEditor 
                 content={editingContent}
                 onContentChange={setEditingContent}
-                onSave={() => {
+                onSave={async () => {
+                  // Update the message content in state
                   setMessages(prev => prev.map(msg => {
                     if (msg.id === currentEditingMessageId) {
                       return { ...msg, content: editingContent };
                     }
                     return msg;
                   }));
+                  
+                  // Get blog details
+                  const currentMessage = messages.find(msg => msg.id === currentEditingMessageId);
+                  const title = currentMessage?.originalTopic || 'Edited Blog Post';
+                  const blogId = currentEditingBlogId; // 🔧 NEW: Use stored blog ID
+                  
+                  try {
+                    // 🔧 NEW: Pass blog ID to determine update vs create
+                    const resultId = await saveBlogToDatabase(editingContent, title, blogId);
+                    if (resultId) {
+                      console.log(`✅ Blog ${blogId ? 'updated' : 'saved'} to database with ID:`, resultId);
+                      // 🔧 NEW: Update the stored blog ID if it was a new blog
+                      if (!blogId) {
+                        setCurrentEditingBlogId(resultId);
+                      }
+                    }
+                  } catch (error) {
+                    console.error('❌ Failed to save blog:', error);
+                  }
+                  
+                  // Return to blog view
                   setIsEditorMode(false);
                   setCurrentPage('blog');
+                  // 🔧 NEW: Clear editing states
+                  setCurrentEditingBlogId(null);
                 }}
                 onExit={() => {
                   setIsEditorMode(false);
                   setCurrentPage('blog');
+                  // 🔧 NEW: Clear editing states on exit
+                  setCurrentEditingBlogId(null);
                 }}
                 onDrop={handleCanvaDrop}
                 isDragging={isDragging}
@@ -4495,7 +4607,7 @@ function App() {
                     )}
                   </div>
                   <div className="message-time">
-                    {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {message.timestamp ? message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                   </div>
                 </div>
               </div>
