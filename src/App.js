@@ -61,7 +61,7 @@ const CanvaEditor = ({
 }) => {
   // Existing state
   const [viewMode, setViewMode] = useState('visual');
-  const [showPurePreview, setShowPurePreview] = useState(false); // NEW: Pure HTML preview toggle
+  const [showPurePreview, setShowPurePreview] = useState(false);
   const [editingElementId, setEditingElementId] = useState(null);
 
   // NEW: Enhanced Canva-like state
@@ -107,21 +107,21 @@ const CanvaEditor = ({
         guides.push({
           type: 'vertical',
           position: rect.left - canvasRect.left,
-          color: '#ff4081'
+          color: '#6366f1'
         });
       }
       if (Math.abs(rect.right - draggedRect.right) < tolerance) {
         guides.push({
           type: 'vertical',
           position: rect.right - canvasRect.left,
-          color: '#ff4081'
+          color: '#6366f1'
         });
       }
       if (Math.abs((rect.left + rect.right) / 2 - (draggedRect.left + draggedRect.right) / 2) < tolerance) {
         guides.push({
           type: 'vertical',
           position: (rect.left + rect.right) / 2 - canvasRect.left,
-          color: '#ff4081'
+          color: '#6366f1'
         });
       }
       
@@ -130,21 +130,21 @@ const CanvaEditor = ({
         guides.push({
           type: 'horizontal',
           position: rect.top - canvasRect.top,
-          color: '#ff4081'
+          color: '#6366f1'
         });
       }
       if (Math.abs(rect.bottom - draggedRect.bottom) < tolerance) {
         guides.push({
           type: 'horizontal',
           position: rect.bottom - canvasRect.top,
-          color: '#ff4081'
+          color: '#6366f1'
         });
       }
       if (Math.abs((rect.top + rect.bottom) / 2 - (draggedRect.top + draggedRect.bottom) / 2) < tolerance) {
         guides.push({
           type: 'horizontal',
           position: (rect.top + rect.bottom) / 2 - canvasRect.top,
-          color: '#ff4081'
+          color: '#6366f1'
         });
       }
     });
@@ -324,18 +324,21 @@ const CanvaEditor = ({
                 top: `${position.y}px`,
                 minWidth: '200px',
                 minHeight: '40px',
-                padding: styles.padding || '12px 16px',
+                padding: styles.padding || '16px 20px',
                 fontSize: styles.fontSize || (element.tagName === 'H1' ? '32px' : element.tagName === 'H2' ? '24px' : element.tagName === 'H3' ? '20px' : '16px'),
-                color: styles.color || '#333',
+                color: styles.color || '#1f2937',
                 backgroundColor: styles.backgroundColor || 'transparent',
-                border: isSelected ? '2px solid #0ea5e9' : isHovered ? '2px solid #0ea5e9aa' : '2px solid transparent',
-                borderRadius: '8px',
+                border: isSelected ? '2px solid #6366f1' : isHovered ? '2px solid #a5b4fc' : '2px solid transparent',
+                borderRadius: '12px',
                 cursor: isDraggingElement ? 'grabbing' : 'grab',
                 userSelect: 'none',
-                transition: isDragged ? 'none' : 'all 0.2s ease',
+                transition: isDragged ? 'none' : 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                 transform: isDragged ? 'scale(1.02)' : 'scale(1)',
-                boxShadow: isDragged ? '0 8px 25px rgba(0,0,0,0.15)' : isHovered ? '0 4px 12px rgba(0,0,0,0.1)' : 'none',
+                boxShadow: isDragged ? '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' : 
+                          isHovered ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' : 
+                          'none',
                 zIndex: isDragged ? 1000 : isSelected ? 100 : 10,
+                fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
                 ...styles
               }}
               draggable={!isEditing}
@@ -349,7 +352,27 @@ const CanvaEditor = ({
             >
               {/* Drag handle */}
               {(isHovered || isSelected) && !isEditing && (
-                <div className="drag-handle" title="Drag to move">
+                <div 
+                  className="drag-handle" 
+                  title="Drag to move"
+                  style={{
+                    position: 'absolute',
+                    top: '-8px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: '24px',
+                    height: '16px',
+                    background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'white',
+                    fontSize: '8px',
+                    cursor: 'grab',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                  }}
+                >
                   ⋮⋮
                 </div>
               )}
@@ -398,7 +421,24 @@ const CanvaEditor = ({
               
               {/* Element type indicator */}
               {(isHovered || isSelected) && !isEditing && (
-                <div className="element-type-indicator">
+                <div 
+                  className="element-type-indicator"
+                  style={{
+                    position: 'absolute',
+                    bottom: '-28px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    background: 'rgba(15, 23, 42, 0.9)',
+                    color: 'white',
+                    padding: '4px 8px',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: '500',
+                    whiteSpace: 'nowrap',
+                    backdropFilter: 'blur(8px)',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                  }}
+                >
                   {element.tagName === 'H1' ? '📝 Heading 1' : 
                    element.tagName === 'H2' ? '📝 Heading 2' : 
                    element.tagName === 'H3' ? '📝 Heading 3' : 
@@ -419,16 +459,33 @@ const CanvaEditor = ({
               left: `${floatingToolbarPosition.x}px`,
               top: `${floatingToolbarPosition.y}px`,
               transform: 'translateX(-50%)',
-              zIndex: 2000
+              zIndex: 2000,
+              background: 'rgba(255, 255, 255, 0.95)',
+              backdropFilter: 'blur(12px)',
+              borderRadius: '12px',
+              padding: '8px',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+              border: '1px solid rgba(229, 231, 235, 0.8)'
             }}
           >
-            <div className="toolbar-buttons">
+            <div className="toolbar-buttons" style={{ display: 'flex', gap: '4px' }}>
               <button 
                 onClick={() => setEditingElementId(selectedElement.id)}
                 className="toolbar-btn edit-btn"
                 title="Edit text (Double-click)"
+                style={{
+                  padding: '8px 12px',
+                  background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
               >
-                ✏️
+                ✏️ Edit
               </button>
               <button 
                 onClick={() => {
@@ -447,8 +504,19 @@ const CanvaEditor = ({
                 }}
                 className="toolbar-btn duplicate-btn"
                 title="Duplicate element"
+                style={{
+                  padding: '8px 12px',
+                  background: 'linear-gradient(135deg, #10b981, #059669)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
               >
-                📋
+                📋 Copy
               </button>
               <button 
                 onClick={() => {
@@ -467,8 +535,19 @@ const CanvaEditor = ({
                 }}
                 className="toolbar-btn delete-btn"
                 title="Delete element"
+                style={{
+                  padding: '8px 12px',
+                  background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
               >
-                🗑️
+                🗑️ Delete
               </button>
             </div>
           </div>
@@ -771,30 +850,125 @@ const CanvaEditor = ({
   }, [viewMode, canUndo, canRedo]);
 
   return (
-    <div className="canva-editor" id="korean-canva-editor">
+    <div className="canva-editor" id="korean-canva-editor" style={{
+      fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+      height: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)'
+    }}>
       {/* Editor Header */}
-      <div className="canva-header" id="korean-canva-header">
-        <div className="canva-header-left">
-          <button onClick={onExit} className="exit-btn" id="korean-exit-btn">
+      <div className="canva-header" id="korean-canva-header" style={{
+        background: 'rgba(255, 255, 255, 0.95)',
+        backdropFilter: 'blur(12px)',
+        borderBottom: '1px solid rgba(229, 231, 235, 0.8)',
+        padding: '16px 24px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+        zIndex: 100
+      }}>
+        <div className="canva-header-left" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <button 
+            onClick={onExit} 
+            className="exit-btn" 
+            id="korean-exit-btn"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 16px',
+              background: 'linear-gradient(135deg, #6b7280, #4b5563)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '10px',
+              fontSize: '14px',
+              fontWeight: '500',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+            }}
+          >
             ← Back to Chat
           </button>
-          <h2>🎨 Canva-Style Editor</h2>
+          <h2 style={{
+            margin: 0,
+            fontSize: '20px',
+            fontWeight: '700',
+            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text'
+          }}>🎨 Canva-Style Editor</h2>
         </div>
-        <div className="canva-header-center">
+        <div className="canva-header-center" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           {/* Existing buttons - always visible */}
-          <button onClick={onUndo} disabled={!canUndo} className="undo-btn" id="korean-undo-btn" title="Undo (Ctrl+Z)">
+          <button 
+            onClick={onUndo} 
+            disabled={!canUndo} 
+            className="undo-btn" 
+            id="korean-undo-btn" 
+            title="Undo (Ctrl+Z)"
+            style={{
+              padding: '8px 12px',
+              background: canUndo ? 'linear-gradient(135deg, #3b82f6, #1d4ed8)' : '#e5e7eb',
+              color: canUndo ? 'white' : '#9ca3af',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '12px',
+              fontWeight: '500',
+              cursor: canUndo ? 'pointer' : 'not-allowed',
+              transition: 'all 0.2s ease'
+            }}
+          >
             ↶ Undo
           </button>
-          <button onClick={onRedo} disabled={!canRedo} className="redo-btn" id="korean-redo-btn" title="Redo (Ctrl+Y)">
+          <button 
+            onClick={onRedo} 
+            disabled={!canRedo} 
+            className="redo-btn" 
+            id="korean-redo-btn" 
+            title="Redo (Ctrl+Y)"
+            style={{
+              padding: '8px 12px',
+              background: canRedo ? 'linear-gradient(135deg, #3b82f6, #1d4ed8)' : '#e5e7eb',
+              color: canRedo ? 'white' : '#9ca3af',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '12px',
+              fontWeight: '500',
+              cursor: canRedo ? 'pointer' : 'not-allowed',
+              transition: 'all 0.2s ease'
+            }}
+          >
             ↷ Redo
           </button>
           
           {/* NEW: View Mode Toggle */}
-          <div className="view-mode-toggle">
+          <div className="view-mode-toggle" style={{
+            display: 'flex',
+            background: 'rgba(243, 244, 246, 0.8)',
+            borderRadius: '12px',
+            padding: '4px',
+            gap: '2px'
+          }}>
             <button 
               className={`mode-btn ${viewMode === 'visual' ? 'active' : ''}`}
               onClick={() => setViewMode('visual')}
               id="korean-visual-mode-btn"
+              style={{
+                padding: '8px 16px',
+                background: viewMode === 'visual' ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'transparent',
+                color: viewMode === 'visual' ? 'white' : '#6b7280',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: viewMode === 'visual' ? '0 2px 4px rgba(99, 102, 241, 0.2)' : 'none'
+              }}
             >
               👁️ Visual
             </button>
@@ -802,6 +976,18 @@ const CanvaEditor = ({
               className={`mode-btn ${viewMode === 'code' ? 'active' : ''}`}
               onClick={() => setViewMode('code')}
               id="korean-code-mode-btn"
+              style={{
+                padding: '8px 16px',
+                background: viewMode === 'code' ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'transparent',
+                color: viewMode === 'code' ? 'white' : '#6b7280',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: viewMode === 'code' ? '0 2px 4px rgba(99, 102, 241, 0.2)' : 'none'
+              }}
             >
               💻 Code
             </button>
@@ -809,11 +995,22 @@ const CanvaEditor = ({
 
           {/* NEW: Code Mode Tools - Only visible in Code mode */}
           {viewMode === 'code' && (
-            <div className="code-tools-group">
+            <div className="code-tools-group" style={{ display: 'flex', gap: '8px', marginLeft: '16px' }}>
               <button 
                 onClick={formatHTML} 
                 className="code-tool-btn format-btn" 
                 title="Format HTML (beautify and indent)"
+                style={{
+                  padding: '6px 10px',
+                  background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
               >
                 🎨 Format
               </button>
@@ -821,6 +1018,17 @@ const CanvaEditor = ({
                 onClick={validateHTML} 
                 className="code-tool-btn validate-btn" 
                 title="Validate HTML for errors"
+                style={{
+                  padding: '6px 10px',
+                  background: 'linear-gradient(135deg, #10b981, #059669)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
               >
                 ✅ Validate
               </button>
@@ -828,6 +1036,17 @@ const CanvaEditor = ({
                 onClick={togglePreview} 
                 className={`code-tool-btn preview-toggle-btn ${showPreview ? 'active' : ''}`}
                 title="Toggle live preview panel"
+                style={{
+                  padding: '6px 10px',
+                  background: showPreview ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'linear-gradient(135deg, #6b7280, #4b5563)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
               >
                 {showPreview ? '👁️ Hide Preview' : '👁️ Show Preview'}
               </button>
@@ -835,6 +1054,17 @@ const CanvaEditor = ({
                 onClick={openFindReplace} 
                 className="code-tool-btn find-btn" 
                 title="Find and Replace (Ctrl+F)"
+                style={{
+                  padding: '6px 10px',
+                  background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
               >
                 🔍 Find
               </button>
@@ -842,108 +1072,273 @@ const CanvaEditor = ({
           )}
 
           {/* NEW: Keyboard shortcuts indicator */}
-          <div className="keyboard-shortcuts-hint">
-            <span className="shortcuts-text">
+          <div className="keyboard-shortcuts-hint" style={{ 
+            marginLeft: '16px', 
+            padding: '6px 12px', 
+            background: 'rgba(99, 102, 241, 0.1)', 
+            borderRadius: '8px',
+            border: '1px solid rgba(99, 102, 241, 0.2)'
+          }}>
+            <span className="shortcuts-text" style={{ 
+              fontSize: '11px', 
+              color: '#6366f1', 
+              fontWeight: '500' 
+            }}>
               💡 Ctrl+S: Save | Ctrl+Z: Undo | Ctrl+Y: Redo
               {viewMode === 'code' && ' | Ctrl+F: Find'}
             </span>
           </div>
         </div>
         <div className="canva-header-right">
-          <button onClick={onSave} className="save-btn" id="korean-save-btn" title="Save Changes (Ctrl+S)">
+          <button 
+            onClick={onSave} 
+            className="save-btn" 
+            id="korean-save-btn" 
+            title="Save Changes (Ctrl+S)"
+            style={{
+              padding: '10px 20px',
+              background: 'linear-gradient(135deg, #10b981, #059669)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '10px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.3)'
+            }}
+          >
             💾 Save Changes
           </button>
         </div>
       </div>
 
-      <div className="canva-workspace" id="korean-canva-workspace">
+      <div className="canva-workspace" id="korean-canva-workspace" style={{
+        display: 'flex',
+        flex: 1,
+        overflow: 'hidden'
+      }}>
         {/* Left Sidebar - Properties Panel */}
-        <div className="canva-sidebar-left" id="korean-sidebar-left">
+        <div className="canva-sidebar-left" id="korean-sidebar-left" style={{
+          width: '280px',
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(12px)',
+          borderRight: '1px solid rgba(229, 231, 235, 0.8)',
+          padding: '20px',
+          overflowY: 'auto',
+          boxShadow: '2px 0 8px rgba(0, 0, 0, 0.05)'
+        }}>
           <div className="properties-panel" id="korean-properties-panel">
-            <h3>Properties</h3>
+            <h3 style={{
+              margin: '0 0 20px 0',
+              fontSize: '18px',
+              fontWeight: '700',
+              color: '#1f2937',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>🎨 Properties</h3>
             {selectedElement ? (
               <div className="element-properties">
-                <h4>Selected: {selectedElement.type}</h4>
+                <h4 style={{
+                  margin: '0 0 16px 0',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#6366f1',
+                  padding: '8px 12px',
+                  background: 'rgba(99, 102, 241, 0.1)',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(99, 102, 241, 0.2)'
+                }}>Selected: {selectedElement.type}</h4>
                 
                 {/* Font Size */}
-                <div className="property-group">
-                  <label>Font Size</label>
-                  <input
-                    type="range"
-                    min="12"
-                    max="48"
-                    value={parseInt(elementStyles[selectedElement.id]?.fontSize) || 16}
-                    onChange={(e) => onUpdateElementStyle(selectedElement.id, 'fontSize', `${e.target.value}px`)}
-                  />
-                  <span>{parseInt(elementStyles[selectedElement.id]?.fontSize) || 16}px</span>
+                <div className="property-group" style={{ marginBottom: '20px' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    color: '#374151',
+                    marginBottom: '8px'
+                  }}>Font Size</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <input
+                      type="range"
+                      min="12"
+                      max="48"
+                      value={parseInt(elementStyles[selectedElement.id]?.fontSize) || 16}
+                      onChange={(e) => onUpdateElementStyle(selectedElement.id, 'fontSize', `${e.target.value}px`)}
+                      style={{
+                        flex: 1,
+                        height: '6px',
+                        borderRadius: '3px',
+                        background: 'linear-gradient(to right, #6366f1, #8b5cf6)',
+                        outline: 'none',
+                        cursor: 'pointer'
+                      }}
+                    />
+                    <span style={{
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      color: '#6366f1',
+                      minWidth: '35px',
+                      textAlign: 'center',
+                      padding: '4px 8px',
+                      background: 'rgba(99, 102, 241, 0.1)',
+                      borderRadius: '6px'
+                    }}>{parseInt(elementStyles[selectedElement.id]?.fontSize) || 16}px</span>
+                  </div>
                 </div>
 
                 {/* Text Color */}
-                <div className="property-group">
-                  <label>Text Color</label>
+                <div className="property-group" style={{ marginBottom: '20px' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    color: '#374151',
+                    marginBottom: '8px'
+                  }}>Text Color</label>
                   <input
                     type="color"
                     value={elementStyles[selectedElement.id]?.color || '#000000'}
                     onChange={(e) => onUpdateElementStyle(selectedElement.id, 'color', e.target.value)}
+                    style={{
+                      width: '100%',
+                      height: '40px',
+                      border: '2px solid #e5e7eb',
+                      borderRadius: '8px',
+                      cursor: 'pointer'
+                    }}
                   />
                 </div>
 
                 {/* Background Color */}
-                <div className="property-group">
-                  <label>Background</label>
+                <div className="property-group" style={{ marginBottom: '20px' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    color: '#374151',
+                    marginBottom: '8px'
+                  }}>Background</label>
                   <input
                     type="color"
                     value={elementStyles[selectedElement.id]?.backgroundColor || '#ffffff'}
                     onChange={(e) => onUpdateElementStyle(selectedElement.id, 'backgroundColor', e.target.value)}
+                    style={{
+                      width: '100%',
+                      height: '40px',
+                      border: '2px solid #e5e7eb',
+                      borderRadius: '8px',
+                      cursor: 'pointer'
+                    }}
                   />
                 </div>
 
                 {/* Margin */}
-                <div className="property-group">
-                  <label>Margin</label>
+                <div className="property-group" style={{ marginBottom: '20px' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    color: '#374151',
+                    marginBottom: '8px'
+                  }}>Margin</label>
                   <input
                     type="text"
                     placeholder="10px 0"
                     value={elementStyles[selectedElement.id]?.margin || ''}
                     onChange={(e) => onUpdateElementStyle(selectedElement.id, 'margin', e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: '2px solid #e5e7eb',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      transition: 'border-color 0.2s ease',
+                      outline: 'none'
+                    }}
                   />
                 </div>
 
                 {/* Padding */}
-                <div className="property-group">
-                  <label>Padding</label>
+                <div className="property-group" style={{ marginBottom: '20px' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    color: '#374151',
+                    marginBottom: '8px'
+                  }}>Padding</label>
                   <input
                     type="text"
                     placeholder="5px"
                     value={elementStyles[selectedElement.id]?.padding || ''}
                     onChange={(e) => onUpdateElementStyle(selectedElement.id, 'padding', e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: '2px solid #e5e7eb',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      transition: 'border-color 0.2s ease',
+                      outline: 'none'
+                    }}
                   />
                 </div>
               </div>
             ) : (
-              <p>Select an element to edit its properties</p>
+              <div style={{
+                textAlign: 'center',
+                padding: '40px 20px',
+                color: '#6b7280',
+                fontSize: '14px'
+              }}>
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎯</div>
+                <p style={{ margin: 0, fontWeight: '500' }}>Select an element to edit its properties</p>
+              </div>
             )}
           </div>
         </div>
 
         {/* Main Canvas - Conditional rendering based on view mode */}
-        <div className="canva-canvas" id="korean-canva-canvas">
+        <div className="canva-canvas" id="korean-canva-canvas" style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+          overflow: 'hidden'
+        }}>
           {viewMode === 'visual' ? (
             // Visual Mode - Existing canvas content with responsive preview
-            <div className="responsive-canvas-wrapper" style={{
-              transform: `scale(${canvasSettings.zoomLevel / 100})`,
-              transformOrigin: 'top center',
-              width: `${canvasSettings.viewportWidth}px`,
-              maxWidth: '100%',
-              margin: '0 auto',
-              transition: 'all 0.3s ease'
-            }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '20px' }}>
               {/* Canvas Controls */}
-              <div className="canva-controls">
+              <div className="canva-controls" style={{
+                display: 'flex',
+                gap: '8px',
+                marginBottom: '20px',
+                padding: '12px 16px',
+                background: 'rgba(255, 255, 255, 0.95)',
+                backdropFilter: 'blur(12px)',
+                borderRadius: '12px',
+                border: '1px solid rgba(229, 231, 235, 0.8)',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+              }}>
                 <button 
                   className={`canva-control-btn ${showGrid ? 'active' : ''}`}
                   onClick={() => setShowGrid(!showGrid)}
                   title="Toggle Grid"
+                  style={{
+                    padding: '8px 12px',
+                    background: showGrid ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'rgba(107, 114, 128, 0.1)',
+                    color: showGrid ? 'white' : '#6b7280',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
                 >
                   📐 Grid
                 </button>
@@ -951,6 +1346,17 @@ const CanvaEditor = ({
                   className={`canva-control-btn ${snapToGrid ? 'active' : ''}`}
                   onClick={() => setSnapToGrid(!snapToGrid)}
                   title="Toggle Snap to Grid"
+                  style={{
+                    padding: '8px 12px',
+                    background: snapToGrid ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'rgba(107, 114, 128, 0.1)',
+                    color: snapToGrid ? 'white' : '#6b7280',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
                 >
                   🧲 Snap
                 </button>
@@ -958,6 +1364,17 @@ const CanvaEditor = ({
                   className={`canva-control-btn ${showAlignmentGuides ? 'active' : ''}`}
                   onClick={() => setShowAlignmentGuides(!showAlignmentGuides)}
                   title="Toggle Alignment Guides"
+                  style={{
+                    padding: '8px 12px',
+                    background: showAlignmentGuides ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'rgba(107, 114, 128, 0.1)',
+                    color: showAlignmentGuides ? 'white' : '#6b7280',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
                 >
                   📏 Guides
                 </button>
@@ -965,12 +1382,35 @@ const CanvaEditor = ({
                   className={`canva-control-btn ${showPurePreview ? 'active' : ''}`}
                   onClick={() => setShowPurePreview(!showPurePreview)}
                   title="Toggle Pure HTML Preview (matches Code mode exactly)"
+                  style={{
+                    padding: '8px 12px',
+                    background: showPurePreview ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'rgba(107, 114, 128, 0.1)',
+                    color: showPurePreview ? 'white' : '#6b7280',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
                 >
                   🎯 Pure Preview
                 </button>
               </div>
               
-              {canvasSettings.showDeviceFrame && (
+              <div className="responsive-canvas-wrapper" style={{
+                transform: `scale(${canvasSettings.zoomLevel / 100})`,
+                transformOrigin: 'top center',
+                width: `${canvasSettings.viewportWidth}px`,
+                maxWidth: '100%',
+                margin: '0 auto',
+                transition: 'all 0.3s ease',
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column'
+              }}>
+                
+                {canvasSettings.showDeviceFrame && (
                 <div className={`device-frame ${canvasSettings.deviceType}`}>
                   <div className="device-screen">
                     <div 
@@ -1131,6 +1571,7 @@ const CanvaEditor = ({
                   )}
                 </div>
               )}
+            </div>
             </div>
           ) : (
             // Code Mode - Monaco Editor with responsive live preview
@@ -1405,14 +1846,46 @@ const CanvaEditor = ({
         )}
 
         {/* Right Sidebar - Image Panel & Canvas Settings */}
-        <div className="canva-sidebar-right" id="korean-sidebar-right">
+        <div className="canva-sidebar-right" id="korean-sidebar-right" style={{
+          width: '320px',
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(12px)',
+          borderLeft: '1px solid rgba(229, 231, 235, 0.8)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflowY: 'auto',
+          boxShadow: '-2px 0 8px rgba(0, 0, 0, 0.05)'
+        }}>
           {/* Panel Header with Tabs */}
-          <div className="panel-header" id="korean-panel-header">
-            <div className="panel-tabs">
+          <div className="panel-header" id="korean-panel-header" style={{
+            padding: '16px 20px 0 20px',
+            borderBottom: '1px solid rgba(229, 231, 235, 0.5)',
+            background: 'rgba(255, 255, 255, 0.8)'
+          }}>
+            <div className="panel-tabs" style={{
+              display: 'flex',
+              gap: '4px',
+              background: 'rgba(243, 244, 246, 0.8)',
+              borderRadius: '12px',
+              padding: '4px'
+            }}>
               <button 
                 className={`panel-tab ${activeImageTab === 'settings' ? 'active' : ''}`}
                 onClick={() => setActiveImageTab('settings')}
                 id="korean-settings-tab"
+                style={{
+                  flex: 1,
+                  padding: '10px 12px',
+                  background: activeImageTab === 'settings' ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'transparent',
+                  color: activeImageTab === 'settings' ? 'white' : '#6b7280',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: activeImageTab === 'settings' ? '0 2px 4px rgba(99, 102, 241, 0.2)' : 'none'
+                }}
               >
                 ⚙️ Settings
               </button>
@@ -1420,6 +1893,19 @@ const CanvaEditor = ({
                 className={`panel-tab ${activeImageTab === 'generate' ? 'active' : ''}`}
                 onClick={() => setActiveImageTab('generate')}
                 id="korean-generate-tab"
+                style={{
+                  flex: 1,
+                  padding: '10px 12px',
+                  background: activeImageTab === 'generate' ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'transparent',
+                  color: activeImageTab === 'generate' ? 'white' : '#6b7280',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: activeImageTab === 'generate' ? '0 2px 4px rgba(99, 102, 241, 0.2)' : 'none'
+                }}
               >
                 🎨 Generate
               </button>
@@ -1427,6 +1913,19 @@ const CanvaEditor = ({
                 className={`panel-tab ${activeImageTab === 'search' ? 'active' : ''}`}
                 onClick={() => setActiveImageTab('search')}
                 id="korean-search-tab"
+                style={{
+                  flex: 1,
+                  padding: '10px 12px',
+                  background: activeImageTab === 'search' ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'transparent',
+                  color: activeImageTab === 'search' ? 'white' : '#6b7280',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: activeImageTab === 'search' ? '0 2px 4px rgba(99, 102, 241, 0.2)' : 'none'
+                }}
               >
                 🔍 Search
               </button>
@@ -1435,12 +1934,29 @@ const CanvaEditor = ({
 
           {/* Canvas Settings Tab */}
           {activeImageTab === 'settings' && (
-            <div className="canvas-settings" id="korean-canvas-settings">
-              <h3>🎨 Canvas Settings</h3>
+            <div className="canvas-settings" id="korean-canvas-settings" style={{ 
+              padding: '20px', 
+              flex: 1 
+            }}>
+              <h3 style={{
+                margin: '0 0 20px 0',
+                fontSize: '18px',
+                fontWeight: '700',
+                color: '#1f2937',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>🎨 Canvas Settings</h3>
               
               {/* Existing Canvas Style Settings */}
-              <div className="setting-group">
-                <label>Background Color</label>
+              <div className="setting-group" style={{ marginBottom: '20px' }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  color: '#374151',
+                  marginBottom: '8px'
+                }}>Background Color</label>
                 <input
                   type="color"
                   value={canvasSettings.backgroundColor}
@@ -1449,11 +1965,24 @@ const CanvaEditor = ({
                     backgroundColor: e.target.value
                   }))}
                   className="korean-color-input"
+                  style={{
+                    width: '100%',
+                    height: '40px',
+                    border: '2px solid #e5e7eb',
+                    borderRadius: '8px',
+                    cursor: 'pointer'
+                  }}
                 />
               </div>
 
-              <div className="setting-group">
-                <label>Max Width</label>
+              <div className="setting-group" style={{ marginBottom: '20px' }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  color: '#374151',
+                  marginBottom: '8px'
+                }}>Max Width</label>
                 <input
                   type="text"
                   value={canvasSettings.maxWidth}
@@ -1463,11 +1992,26 @@ const CanvaEditor = ({
                   }))}
                   className="korean-text-input"
                   placeholder="800px"
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    border: '2px solid #e5e7eb',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    transition: 'border-color 0.2s ease',
+                    outline: 'none'
+                  }}
                 />
               </div>
 
-              <div className="setting-group">
-                <label>Padding</label>
+              <div className="setting-group" style={{ marginBottom: '20px' }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  color: '#374151',
+                  marginBottom: '8px'
+                }}>Padding</label>
                 <input
                   type="text"
                   value={canvasSettings.padding}
@@ -1477,11 +2021,26 @@ const CanvaEditor = ({
                   }))}
                   className="korean-text-input"
                   placeholder="40px"
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    border: '2px solid #e5e7eb',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    transition: 'border-color 0.2s ease',
+                    outline: 'none'
+                  }}
                 />
               </div>
 
-              <div className="setting-group">
-                <label>Font Family</label>
+              <div className="setting-group" style={{ marginBottom: '20px' }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  color: '#374151',
+                  marginBottom: '8px'
+                }}>Font Family</label>
                 <select
                   value={canvasSettings.fontFamily}
                   onChange={(e) => onUpdateCanvasSettings(prev => ({
@@ -1489,6 +2048,16 @@ const CanvaEditor = ({
                     fontFamily: e.target.value
                   }))}
                   className="korean-select-input"
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    border: '2px solid #e5e7eb',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    background: 'white',
+                    cursor: 'pointer',
+                    outline: 'none'
+                  }}
                 >
                   <option value="Inter, sans-serif">Inter</option>
                   <option value="Arial, sans-serif">Arial</option>
@@ -1499,14 +2068,36 @@ const CanvaEditor = ({
               </div>
 
               {/* NEW: Responsive Design Preview Controls */}
-              <div className="responsive-settings-divider">
-                <h4>📱 Responsive Preview</h4>
+              <div className="responsive-settings-divider" style={{
+                margin: '30px 0 20px 0',
+                padding: '15px 0',
+                borderTop: '2px solid rgba(229, 231, 235, 0.5)'
+              }}>
+                <h4 style={{
+                  margin: 0,
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  color: '#1f2937',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>📱 Responsive Preview</h4>
               </div>
 
               {/* Device Preset Buttons */}
-              <div className="setting-group">
-                <label>Device Presets</label>
-                <div className="device-preset-buttons">
+              <div className="setting-group" style={{ marginBottom: '20px' }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  color: '#374151',
+                  marginBottom: '12px'
+                }}>Device Presets</label>
+                <div className="device-preset-buttons" style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '8px'
+                }}>
                   <button
                     className={`device-preset-btn ${canvasSettings.deviceType === 'mobile' ? 'active' : ''}`}
                     onClick={() => onUpdateCanvasSettings(prev => ({
@@ -1514,6 +2105,17 @@ const CanvaEditor = ({
                       deviceType: 'mobile',
                       viewportWidth: canvasSettings.orientation === 'landscape' ? 667 : 375
                     }))}
+                    style={{
+                      padding: '10px 12px',
+                      background: canvasSettings.deviceType === 'mobile' ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'rgba(107, 114, 128, 0.1)',
+                      color: canvasSettings.deviceType === 'mobile' ? 'white' : '#6b7280',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '11px',
+                      fontWeight: '500',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
                   >
                     📱 Mobile
                   </button>
@@ -1524,6 +2126,17 @@ const CanvaEditor = ({
                       deviceType: 'tablet',
                       viewportWidth: canvasSettings.orientation === 'landscape' ? 1024 : 768
                     }))}
+                    style={{
+                      padding: '10px 12px',
+                      background: canvasSettings.deviceType === 'tablet' ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'rgba(107, 114, 128, 0.1)',
+                      color: canvasSettings.deviceType === 'tablet' ? 'white' : '#6b7280',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '11px',
+                      fontWeight: '500',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
                   >
                     📟 Tablet
                   </button>
@@ -1534,6 +2147,17 @@ const CanvaEditor = ({
                       deviceType: 'desktop',
                       viewportWidth: 1200
                     }))}
+                    style={{
+                      padding: '10px 12px',
+                      background: canvasSettings.deviceType === 'desktop' ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'rgba(107, 114, 128, 0.1)',
+                      color: canvasSettings.deviceType === 'desktop' ? 'white' : '#6b7280',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '11px',
+                      fontWeight: '500',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
                   >
                     🖥️ Desktop
                   </button>
@@ -1543,6 +2167,17 @@ const CanvaEditor = ({
                       ...prev,
                       deviceType: 'custom'
                     }))}
+                    style={{
+                      padding: '10px 12px',
+                      background: canvasSettings.deviceType === 'custom' ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'rgba(107, 114, 128, 0.1)',
+                      color: canvasSettings.deviceType === 'custom' ? 'white' : '#6b7280',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '11px',
+                      fontWeight: '500',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
                   >
                     ⚙️ Custom
                   </button>
@@ -1550,11 +2185,25 @@ const CanvaEditor = ({
               </div>
 
               {/* Viewport Width Slider */}
-              <div className="setting-group">
-                <label>
+              <div className="setting-group" style={{ marginBottom: '20px' }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  color: '#374151',
+                  marginBottom: '8px'
+                }}>
                   Viewport Width: {canvasSettings.viewportWidth}px
                   {canvasSettings.deviceType !== 'custom' && (
-                    <span className="preset-indicator">({canvasSettings.deviceType})</span>
+                    <span style={{
+                      fontSize: '11px',
+                      color: '#6366f1',
+                      fontWeight: '500',
+                      marginLeft: '8px',
+                      padding: '2px 6px',
+                      background: 'rgba(99, 102, 241, 0.1)',
+                      borderRadius: '4px'
+                    }}>({canvasSettings.deviceType})</span>
                   )}
                 </label>
                 <input
@@ -1570,8 +2219,23 @@ const CanvaEditor = ({
                   }))}
                   className="viewport-slider"
                   disabled={canvasSettings.deviceType !== 'custom'}
+                  style={{
+                    width: '100%',
+                    height: '6px',
+                    borderRadius: '3px',
+                    background: 'linear-gradient(to right, #6366f1, #8b5cf6)',
+                    outline: 'none',
+                    cursor: canvasSettings.deviceType === 'custom' ? 'pointer' : 'not-allowed',
+                    opacity: canvasSettings.deviceType === 'custom' ? 1 : 0.5
+                  }}
                 />
-                <div className="slider-labels">
+                <div className="slider-labels" style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  marginTop: '8px',
+                  fontSize: '11px',
+                  color: '#6b7280'
+                }}>
                   <span>320px</span>
                   <span>1920px</span>
                 </div>
@@ -1579,9 +2243,18 @@ const CanvaEditor = ({
 
               {/* Orientation Toggle (for mobile/tablet) */}
               {(canvasSettings.deviceType === 'mobile' || canvasSettings.deviceType === 'tablet') && (
-                <div className="setting-group">
-                  <label>Orientation</label>
-                  <div className="orientation-toggle">
+                <div className="setting-group" style={{ marginBottom: '20px' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    color: '#374151',
+                    marginBottom: '8px'
+                  }}>Orientation</label>
+                  <div className="orientation-toggle" style={{
+                    display: 'flex',
+                    gap: '8px'
+                  }}>
                     <button
                       className={`orientation-btn ${canvasSettings.orientation === 'portrait' ? 'active' : ''}`}
                       onClick={() => {
@@ -1592,6 +2265,18 @@ const CanvaEditor = ({
                           orientation: newOrientation,
                           viewportWidth: newWidth
                         }));
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '8px 12px',
+                        background: canvasSettings.orientation === 'portrait' ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'rgba(107, 114, 128, 0.1)',
+                        color: canvasSettings.orientation === 'portrait' ? 'white' : '#6b7280',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '11px',
+                        fontWeight: '500',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
                       }}
                     >
                       📱 Portrait
@@ -1607,6 +2292,18 @@ const CanvaEditor = ({
                           viewportWidth: newWidth
                         }));
                       }}
+                      style={{
+                        flex: 1,
+                        padding: '8px 12px',
+                        background: canvasSettings.orientation === 'landscape' ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'rgba(107, 114, 128, 0.1)',
+                        color: canvasSettings.orientation === 'landscape' ? 'white' : '#6b7280',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '11px',
+                        fontWeight: '500',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
                     >
                       📱 Landscape
                     </button>
@@ -1615,9 +2312,20 @@ const CanvaEditor = ({
               )}
 
               {/* Zoom Controls */}
-              <div className="setting-group">
-                <label>Preview Zoom: {canvasSettings.zoomLevel}%</label>
-                <div className="zoom-controls">
+              <div className="setting-group" style={{ marginBottom: '20px' }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  color: '#374151',
+                  marginBottom: '8px'
+                }}>Preview Zoom: {canvasSettings.zoomLevel}%</label>
+                <div className="zoom-controls" style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  marginBottom: '12px'
+                }}>
                   <button
                     className="zoom-btn"
                     onClick={() => onUpdateCanvasSettings(prev => ({
@@ -1625,6 +2333,16 @@ const CanvaEditor = ({
                       zoomLevel: Math.max(25, prev.zoomLevel - 25)
                     }))}
                     disabled={canvasSettings.zoomLevel <= 25}
+                    style={{
+                      padding: '6px 8px',
+                      background: canvasSettings.zoomLevel > 25 ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : '#e5e7eb',
+                      color: canvasSettings.zoomLevel > 25 ? 'white' : '#9ca3af',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '11px',
+                      cursor: canvasSettings.zoomLevel > 25 ? 'pointer' : 'not-allowed',
+                      transition: 'all 0.2s ease'
+                    }}
                   >
                     🔍➖
                   </button>
@@ -1639,6 +2357,14 @@ const CanvaEditor = ({
                       zoomLevel: parseInt(e.target.value)
                     }))}
                     className="zoom-slider"
+                    style={{
+                      flex: 1,
+                      height: '6px',
+                      borderRadius: '3px',
+                      background: 'linear-gradient(to right, #6366f1, #8b5cf6)',
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }}
                   />
                   <button
                     className="zoom-btn"
@@ -1647,26 +2373,75 @@ const CanvaEditor = ({
                       zoomLevel: Math.min(200, prev.zoomLevel + 25)
                     }))}
                     disabled={canvasSettings.zoomLevel >= 200}
+                    style={{
+                      padding: '6px 8px',
+                      background: canvasSettings.zoomLevel < 200 ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : '#e5e7eb',
+                      color: canvasSettings.zoomLevel < 200 ? 'white' : '#9ca3af',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '11px',
+                      cursor: canvasSettings.zoomLevel < 200 ? 'pointer' : 'not-allowed',
+                      transition: 'all 0.2s ease'
+                    }}
                   >
                     🔍➕
                   </button>
                 </div>
-                <div className="zoom-presets">
+                <div className="zoom-presets" style={{
+                  display: 'flex',
+                  gap: '6px'
+                }}>
                   <button
                     className="zoom-preset-btn"
                     onClick={() => onUpdateCanvasSettings(prev => ({ ...prev, zoomLevel: 50 }))}
+                    style={{
+                      flex: 1,
+                      padding: '6px 8px',
+                      background: canvasSettings.zoomLevel === 50 ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'rgba(107, 114, 128, 0.1)',
+                      color: canvasSettings.zoomLevel === 50 ? 'white' : '#6b7280',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '10px',
+                      fontWeight: '500',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
                   >
                     50%
                   </button>
                   <button
                     className="zoom-preset-btn"
                     onClick={() => onUpdateCanvasSettings(prev => ({ ...prev, zoomLevel: 100 }))}
+                    style={{
+                      flex: 1,
+                      padding: '6px 8px',
+                      background: canvasSettings.zoomLevel === 100 ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'rgba(107, 114, 128, 0.1)',
+                      color: canvasSettings.zoomLevel === 100 ? 'white' : '#6b7280',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '10px',
+                      fontWeight: '500',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
                   >
                     100%
                   </button>
                   <button
                     className="zoom-preset-btn"
                     onClick={() => onUpdateCanvasSettings(prev => ({ ...prev, zoomLevel: 150 }))}
+                    style={{
+                      flex: 1,
+                      padding: '6px 8px',
+                      background: canvasSettings.zoomLevel === 150 ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'rgba(107, 114, 128, 0.1)',
+                      color: canvasSettings.zoomLevel === 150 ? 'white' : '#6b7280',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '10px',
+                      fontWeight: '500',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
                   >
                     150%
                   </button>
@@ -1674,8 +2449,16 @@ const CanvaEditor = ({
               </div>
 
               {/* Device Frame Toggle */}
-              <div className="setting-group">
-                <label className="checkbox-label">
+              <div className="setting-group" style={{ marginBottom: '20px' }}>
+                <label className="checkbox-label" style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  color: '#374151',
+                  cursor: 'pointer'
+                }}>
                   <input
                     type="checkbox"
                     checked={canvasSettings.showDeviceFrame}
@@ -1683,9 +2466,13 @@ const CanvaEditor = ({
                       ...prev,
                       showDeviceFrame: e.target.checked
                     }))}
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      cursor: 'pointer'
+                    }}
                   />
-                  <span className="checkmark"></span>
-                  Show Device Frame
+                  <span>Show Device Frame</span>
                 </label>
               </div>
             </div>
