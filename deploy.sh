@@ -13,8 +13,8 @@ fi
 echo "📦 Installing dependencies..."
 npm install || { echo "❌ Failed to install dependencies"; exit 1; }
 
-echo "🔧 Building app..."
-npm run build || { echo "❌ Build failed"; exit 1; }
+echo "🔧 Building app for production..."
+NODE_ENV=production npm run build || { echo "❌ Build failed"; exit 1; }
 
 echo "🗂️  Creating deployment directory if it doesn't exist..."
 sudo mkdir -p /var/www/Blog-Generator || { echo "❌ Failed to create deployment directory"; exit 1; }

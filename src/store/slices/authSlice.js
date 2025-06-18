@@ -17,9 +17,7 @@ const isTokenExpired = (token) => {
 
 // Helper function to get API URL
 const getApiUrl = (endpoint) => {
-  const baseUrl = process.env.NODE_ENV === 'production' 
-    ? 'https://blog.andrewbrowne.org'
-    : 'http://localhost:4000';
+  const baseUrl = 'https://blog.andrewbrowne.org';
   return `${baseUrl}${endpoint}`;
 };
 

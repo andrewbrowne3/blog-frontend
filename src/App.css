@@ -1676,8 +1676,8 @@ body {
 
 .images-grid {
   padding: 1rem;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1rem;
 }
 
@@ -2436,13 +2436,10 @@ body {
 
 /* Main Editor Container */
 .canva-editor {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
   background: #f8fafc;
-  z-index: 1000;
   display: flex;
   flex-direction: column;
 }
@@ -2541,7 +2538,7 @@ body {
 .editor-layout {
   flex: 1;
   display: flex;
-  
+  min-height: 0;
 }
 
 .editor-sidebar {
@@ -2561,7 +2558,7 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  
+  overflow: auto;
 }
 
 .canvas-controls {
@@ -2613,11 +2610,11 @@ body {
   flex: 1;
   overflow-y: auto;
   padding: 2rem;
-  margin: 0 auto;
   background: white;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   border-radius: 8px;
   margin: 1rem;
+  max-height: calc(100vh - 200px);
 }
 
 /* Canva Image Panel Styles */
@@ -3424,276 +3421,1312 @@ body {
 
 /* Update existing styles if needed */
 
-/* ========================================
-   PAGE STRUCTURE STYLES (korean-* IDs)
-   ======================================== */
-
-/* Korean Page Layout - Editor Interface */
-#korean-canva-editor {
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-  min-height: 100vh;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-}
-
-#korean-canva-header {
-  background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
-  color: white;
-  padding: 1rem 2rem;
-  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.2);
-  border-bottom: 3px solid #1d4ed8;
-}
-
-#korean-canva-workspace {
+/* Code Tools Group Styles */
+.code-tools-group {
   display: flex;
-  height: calc(100vh - 80px);
-  gap: 1rem;
-  padding: 1rem;
+  gap: 8px;
+  align-items: center;
+  margin-left: 16px;
+  padding-left: 16px;
+  border-left: 1px solid #e2e8f0;
 }
 
-#korean-sidebar-left,
-#korean-sidebar-right {
-  width: 300px;
+.code-tool-btn {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #f9fafb;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.code-tool-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+  transform: translateY(-1px);
+}
+
+.code-tool-btn:active {
+  transform: translateY(0);
+}
+
+.code-tool-btn.active {
+  background: #3b82f6;
+  color: white;
+  border-color: #2563eb;
+}
+
+.format-btn:hover {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #92400e;
+}
+
+.validate-btn:hover {
+  background: #d1fae5;
+  border-color: #10b981;
+  color: #065f46;
+}
+
+.preview-toggle-btn.active {
+  background: #3b82f6;
+  color: white;
+}
+
+.find-btn:hover {
+  background: #e0e7ff;
+  border-color: #6366f1;
+  color: #4338ca;
+}
+
+/* Keyboard Shortcuts Hint */
+.keyboard-shortcuts-hint {
+  margin-left: auto;
+  padding: 4px 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.shortcuts-text {
+  font-family: 'Monaco', 'Menlo', monospace;
+}
+
+/* Code Editor Layout Enhancements */
+.code-editor-layout.full-width .code-editor-panel {
+  width: 100%;
+  max-width: none;
+}
+
+.code-editor-layout.full-width .live-preview-panel {
+  display: none;
+}
+
+/* Preview Panel Controls */
+.preview-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.close-preview-btn {
+  padding: 4px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #f9fafb;
+  color: #6b7280;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.close-preview-btn:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+/* Find/Replace Modal Styles */
+.find-replace-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.find-replace-modal {
   background: white;
   border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.1);
-  border: 2px solid #dbeafe;
-  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow: hidden;
+  animation: modalSlideIn 0.3s ease-out;
 }
 
-#korean-canva-canvas {
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.modal-close-btn {
+  padding: 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #6b7280;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+.modal-close-btn:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.find-section,
+.replace-section {
+  margin-bottom: 20px;
+}
+
+.find-section label,
+.replace-section label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #374151;
+  font-size: 14px;
+}
+
+.find-input,
+.replace-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.find-input:focus,
+.replace-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.find-options {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.find-options label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #374151;
+  cursor: pointer;
+  margin-bottom: 0;
+}
+
+.find-options input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #3b82f6;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.replace-all-btn,
+.find-btn-modal,
+.cancel-btn {
+  padding: 10px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.replace-all-btn {
+  background: #3b82f6;
+  color: white;
+  border-color: #2563eb;
+}
+
+.replace-all-btn:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+}
+
+.find-btn-modal {
+  background: #f9fafb;
+  color: #374151;
+}
+
+.find-btn-modal:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+  transform: translateY(-1px);
+}
+
+.cancel-btn {
+  background: #f9fafb;
+  color: #6b7280;
+}
+
+.cancel-btn:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+/* Enhanced Header Styles */
+.canva-header-center {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   flex: 1;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.1);
-  border: 2px solid #dbeafe;
-  overflow-y: auto;
-  padding: 1rem;
-}
-
-#korean-canvas-content {
-  /* Canvas content styles handled by inline styles */
-}
-
-/* ========================================
-   BLOG CONTENT STYLES (blog-* IDs)
-   ======================================== */
-
-/* Blog Content Container - Isolated styling for actual blog content */
-#blog-content-container {
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-  border-radius: 12px;
-  padding: 2rem;
-  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.1);
-  border: 2px solid #dbeafe;
+  justify-content: center;
   position: relative;
+}
+
+.view-mode-toggle {
+  display: flex;
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 2px;
+  margin: 0 16px;
+}
+
+.mode-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mode-btn.active {
+  background: white;
+  color: #1e293b;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.mode-btn:hover:not(.active) {
+  color: #475569;
+}
+
+/* Responsive Design for Mobile */
+@media (max-width: 768px) {
+  .code-tools-group {
+    flex-wrap: wrap;
+    margin-left: 8px;
+    padding-left: 8px;
+  }
+  
+  .code-tool-btn {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+  
+  .keyboard-shortcuts-hint {
+    display: none;
+  }
+  
+  .find-replace-modal {
+    width: 95%;
+    margin: 20px;
+  }
+  
+  .modal-actions {
+    flex-direction: column;
+  }
+  
+  .replace-all-btn,
+  .find-btn-modal,
+  .cancel-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Canva-like Visual Editor Styles */
+.canva-elements-container {
+  position: relative;
+  width: 100%;
+  min-height: 600px;
+  background: #fafafa;
+  border-radius: 8px;
+  overflow: auto;
+}
+
+/* Grid Overlay */
+.canva-grid-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.grid-line {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.1);
+  pointer-events: none;
+}
+
+.grid-line.vertical {
+  width: 1px;
+  height: 100%;
+  top: 0;
+}
+
+.grid-line.horizontal {
+  height: 1px;
+  width: 100%;
+  left: 0;
+}
+
+/* Alignment Guides */
+.alignment-guide {
+  position: absolute;
+  pointer-events: none;
+  z-index: 999;
+  animation: guideAppear 0.2s ease-out;
+}
+
+.alignment-guide.vertical {
+  width: 2px;
+  height: 100%;
+  top: 0;
+  box-shadow: 0 0 4px rgba(255, 64, 129, 0.5);
+}
+
+.alignment-guide.horizontal {
+  height: 2px;
+  width: 100%;
+  left: 0;
+  box-shadow: 0 0 4px rgba(255, 64, 129, 0.5);
+}
+
+@keyframes guideAppear {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Draggable Elements */
+.canva-draggable-element {
+  position: absolute;
+  background: white;
+  border-radius: 8px;
+  cursor: grab;
+  user-select: none;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.canva-draggable-element:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.canva-draggable-element.selected {
+  box-shadow: 0 0 0 2px #0ea5e9, 0 4px 12px rgba(14, 165, 233, 0.2);
+}
+
+.canva-draggable-element.dragging {
+  cursor: grabbing;
+  transform: scale(1.02) rotate(1deg);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  transition: none;
+}
+
+.canva-draggable-element.hovered {
+  border-color: #0ea5e9aa;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.1);
+}
+
+/* Drag Handle */
+.drag-handle {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0ea5e9;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: grab;
+  opacity: 0;
+  transition: all 0.2s ease;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.canva-draggable-element:hover .drag-handle,
+.canva-draggable-element.selected .drag-handle {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-2px);
+}
+
+.drag-handle:hover {
+  background: #0284c7;
+  cursor: grabbing;
+}
+
+/* Element Type Indicator */
+.element-type-indicator {
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  opacity: 0;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.canva-draggable-element:hover .element-type-indicator,
+.canva-draggable-element.selected .element-type-indicator {
+  opacity: 1;
+  transform: translateX(-50%) translateY(2px);
+}
+
+/* Element Content */
+.element-content {
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.canva-draggable-element.h1 {
+  font-weight: bold;
+  font-size: 32px;
+  min-height: 50px;
+}
+
+.canva-draggable-element.h2 {
+  font-weight: bold;
+  font-size: 24px;
+  min-height: 40px;
+}
+
+.canva-draggable-element.h3 {
+  font-weight: bold;
+  font-size: 20px;
+  min-height: 35px;
+}
+
+.canva-draggable-element.p {
+  font-size: 16px;
+  line-height: 1.5;
+  min-height: 30px;
+}
+
+/* Inline Editor */
+.inline-editor {
+  width: 100%;
+  height: 100%;
+}
+
+.inline-editor textarea {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  resize: none;
+  outline: none;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  padding: 0;
+  margin: 0;
+}
+
+/* Floating Toolbar */
+.floating-toolbar {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  padding: 8px;
+  animation: toolbarSlideIn 0.2s ease-out;
+  border: 1px solid #e2e8f0;
+}
+
+@keyframes toolbarSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+.toolbar-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.toolbar-btn {
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+}
+
+.toolbar-btn:hover {
+  background: #e2e8f0;
+  transform: translateY(-1px);
+}
+
+.toolbar-btn.edit-btn:hover {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.toolbar-btn.duplicate-btn:hover {
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.toolbar-btn.delete-btn:hover {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+/* Canvas Controls */
+.canva-controls {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  gap: 8px;
+  z-index: 100;
+}
+
+.canva-control-btn {
+  padding: 8px 12px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  color: #475569;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.canva-control-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+}
+
+.canva-control-btn.active {
+  background: #0ea5e9;
+  color: white;
+  border-color: #0284c7;
+}
+
+/* Enhanced Visual Mode Styles */
+.canva-canvas {
+  position: relative;
+  background: #f8fafc;
+  border-radius: 8px;
   overflow: hidden;
 }
 
-#blog-content-container::before {
+.canvas-content {
+  position: relative;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Smooth Animations */
+.canva-draggable-element {
+  animation: elementAppear 0.3s ease-out;
+}
+
+@keyframes elementAppear {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .canva-draggable-element {
+    min-width: 150px;
+    font-size: 14px;
+  }
+  
+  .drag-handle {
+    font-size: 10px;
+    padding: 3px 6px;
+  }
+  
+  .toolbar-btn {
+    min-width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+  
+  .floating-toolbar {
+    padding: 6px;
+  }
+  
+  .element-type-indicator {
+    font-size: 10px;
+    padding: 3px 6px;
+  }
+}
+
+/* Visual Feedback for Drag Operations */
+.canva-elements-container.drag-active {
+  background: #f1f5f9;
+}
+
+.canva-elements-container.drag-active .canva-draggable-element:not(.dragging) {
+  opacity: 0.7;
+}
+
+/* Grid Toggle Animation */
+.canva-grid-overlay {
+  animation: gridFadeIn 0.3s ease-out;
+}
+
+@keyframes gridFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Enhanced Selection Styles */
+.canva-draggable-element.selected::before {
   content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  border: 2px solid #0ea5e9;
+  border-radius: 10px;
+  pointer-events: none;
+  animation: selectionPulse 2s infinite;
+}
+
+@keyframes selectionPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.1);
+  }
+}
+
+/* Korean Images Grid - same styling as regular images grid */
+.korean-images-grid {
+  padding: 1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+/* Korean Image Item - same styling as regular image items */
+.korean-image-item {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: grab;
+  border: 2px solid transparent;
+}
+
+.korean-image-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(14, 165, 233, 0.2);
+  border-color: rgba(14, 165, 233, 0.3);
+}
+
+.korean-image-item:active {
+  cursor: grabbing;
+  transform: scale(0.98);
+}
+
+.korean-image-preview {
+  position: relative;
+}
+
+.korean-image-preview img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  border-radius: 8px 8px 0 0;
+  transition: transform 0.2s ease;
+}
+
+.korean-image-item:hover .korean-image-preview img {
+  transform: scale(1.02);
+}
+
+.korean-image-overlay {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, #3b82f6, #1d4ed8, #1e40af);
+  bottom: 0;
+  background: rgba(14, 165, 233, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  border-radius: 8px 8px 0 0;
 }
 
-#blog-rendered-content {
-  background: white;
-  padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(59, 130, 246, 0.05);
+.korean-image-item:hover .korean-image-overlay {
+  opacity: 1;
+}
+
+.korean-drag-hint {
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.korean-image-info {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.korean-image-description {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #334155;
+  line-height: 1.4;
+  font-weight: 500;
+}
+
+.korean-section-tag,
+.korean-source-tag {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 500;
+  display: inline-block;
+  margin-right: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.korean-section-tag {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.korean-source-tag {
+  background: #f3e8ff;
+  color: #7c3aed;
+}
+
+/* Image Action Buttons */
+.image-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
   border: 1px solid #e2e8f0;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  text-align: left;
 }
 
-/* Blog Typography - Only affects rendered blog content */
-#blog-rendered-content h1,
-#blog-rendered-content h2,
-#blog-rendered-content h3,
-#blog-rendered-content h4,
-#blog-rendered-content h5,
-#blog-rendered-content h6 {
-  color: #1e40af !important;
-  font-weight: 700 !important;
-  margin-bottom: 1rem !important;
-  text-shadow: 0 1px 2px rgba(30, 64, 175, 0.1) !important;
+.action-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
 }
 
-#blog-rendered-content h1 {
-  font-size: 2.5rem !important;
-  border-bottom: 3px solid #3b82f6 !important;
-  padding-bottom: 0.5rem !important;
+.action-btn .icon {
+  font-size: 0.9rem;
 }
 
-#blog-rendered-content h2 {
-  font-size: 2rem !important;
-  color: #2563eb !important;
+.add-to-canvas-btn:hover {
+  background: #dbeafe;
+  border-color: #3b82f6;
+  color: #1d4ed8;
 }
 
-#blog-rendered-content h3 {
-  font-size: 1.5rem !important;
-  color: #1d4ed8 !important;
+.action-btn.insert-btn:hover {
+  background: #dcfce7;
+  border-color: #10b981;
+  color: #065f46;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
 }
 
-#blog-rendered-content p {
-  color: #374151 !important;
-  line-height: 1.8 !important;
-  margin-bottom: 1.2rem !important;
-  font-size: 1.1rem !important;
+.action-btn.copy-btn:hover {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #92400e;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
 }
 
-#blog-rendered-content strong {
-  color: #1e40af !important;
-  font-weight: 600 !important;
+.action-btn.copy-btn.copied {
+  background: #dcfce7;
+  border-color: #10b981;
+  color: #065f46;
+  animation: successPulse 0.3s ease;
 }
 
-#blog-rendered-content em {
-  color: #2563eb !important;
-  font-style: italic !important;
+.action-btn.canvas-btn:hover {
+  background: #f3e8ff;
+  border-color: #8b5cf6;
+  color: #6b21a8;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
 }
 
-/* Blog Lists */
-#blog-rendered-content ul,
-#blog-rendered-content ol {
-  margin: 1rem 0 !important;
-  padding-left: 2rem !important;
+@keyframes successPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
 }
 
-#blog-rendered-content li {
-  color: #374151 !important;
-  margin-bottom: 0.5rem !important;
-  line-height: 1.6 !important;
+/* Visual feedback for successful insertion */
+body.image-inserted {
+  animation: imageInsertedFlash 1s ease;
 }
 
-#blog-rendered-content ul li::marker {
-  color: #3b82f6 !important;
+@keyframes imageInsertedFlash {
+  0% { background-color: transparent; }
+  20% { background-color: rgba(34, 197, 94, 0.1); }
+  100% { background-color: transparent; }
 }
 
-#blog-rendered-content ol li::marker {
-  color: #1e40af !important;
-  font-weight: 600 !important;
+/* HTML Code Snippet */
+.html-snippet {
+  margin-top: 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #f8fafc;
 }
 
-/* Blog Links */
-#blog-rendered-content a {
-  color: #2563eb !important;
-  text-decoration: underline !important;
-  text-decoration-color: #93c5fd !important;
-  transition: all 0.3s ease !important;
+.snippet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  background: #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
 }
 
-#blog-rendered-content a:hover {
-  color: #1d4ed8 !important;
-  text-decoration-color: #3b82f6 !important;
-  background-color: rgba(59, 130, 246, 0.1) !important;
-  padding: 2px 4px !important;
-  border-radius: 4px !important;
+.copy-snippet-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: background 0.2s ease;
 }
 
-/* Blog Code */
-#blog-rendered-content code {
-  background-color: #dbeafe !important;
-  color: #1e40af !important;
-  padding: 2px 6px !important;
-  border-radius: 4px !important;
-  font-family: 'Courier New', monospace !important;
-  font-size: 0.9em !important;
+.copy-snippet-btn:hover {
+  background: #e2e8f0;
 }
 
-#blog-rendered-content pre {
-  background-color: #f1f5f9 !important;
-  border: 1px solid #cbd5e1 !important;
-  border-left: 4px solid #3b82f6 !important;
-  padding: 1rem !important;
-  border-radius: 6px !important;
-  overflow-x: auto !important;
-  margin: 1rem 0 !important;
+.code-snippet {
+  margin: 0;
+  padding: 0.75rem;
+  font-family: 'Courier New', monospace;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  color: #374151;
+  background: white;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 
-#blog-rendered-content pre code {
-  background: none !important;
+/* Image Metadata */
+.image-metadata {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.metadata-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+  font-size: 0.75rem;
+}
+
+.metadata-label {
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.metadata-value {
+  color: #374151;
+  text-align: right;
+  flex: 1;
+  margin-left: 0.5rem;
+  word-break: break-word;
+}
+
+/* Pure Preview Mode Styles */
+.pure-preview-content {
+  /* Reset any canvas-specific positioning */
+  position: static !important;
   padding: 0 !important;
-  color: #334155 !important;
+  margin: 0 !important;
+  
+  /* Match the exact rendering from Code mode */
+  line-height: 1.6;
+  font-size: 16px;
+  word-wrap: break-word;
 }
 
-/* Blog Blockquotes */
-#blog-rendered-content blockquote {
-  border-left: 4px solid #3b82f6 !important;
-  background-color: #f8fafc !important;
-  padding: 1rem 1.5rem !important;
-  margin: 1.5rem 0 !important;
-  border-radius: 0 8px 8px 0 !important;
-  font-style: italic !important;
-  color: #475569 !important;
+.pure-preview-content * {
+  /* Remove any absolute positioning that might be in the HTML */
+  position: static !important;
+  
+  /* Reset any canvas-specific transforms */
+  transform: none !important;
 }
 
-/* Blog Images */
-#blog-rendered-content img {
-  max-width: 100% !important;
-  height: auto !important;
-  border-radius: 8px !important;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15) !important;
-  margin: 1rem 0 !important;
-  border: 2px solid #e2e8f0 !important;
+/* Ensure images in pure preview behave normally */
+.pure-preview-content img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1rem auto;
 }
 
-/* Blog Tables */
-#blog-rendered-content table {
-  width: 100% !important;
-  border-collapse: collapse !important;
-  margin: 1.5rem 0 !important;
-  background-color: white !important;
-  border-radius: 8px !important;
-  overflow: hidden !important;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1) !important;
+/* Ensure headings and paragraphs have proper spacing in pure preview */
+.pure-preview-content h1,
+.pure-preview-content h2,
+.pure-preview-content h3,
+.pure-preview-content h4,
+.pure-preview-content h5,
+.pure-preview-content h6 {
+  margin: 1.5rem 0 1rem 0;
+  font-weight: bold;
 }
 
-#blog-rendered-content th {
-  background-color: #3b82f6 !important;
-  color: white !important;
-  padding: 0.75rem !important;
-  text-align: left !important;
-  font-weight: 600 !important;
+.pure-preview-content p {
+  margin: 1rem 0;
 }
 
-#blog-rendered-content td {
-  padding: 0.75rem !important;
-  border-bottom: 1px solid #e2e8f0 !important;
-  color: #374151 !important;
+.pure-preview-content ul,
+.pure-preview-content ol {
+  margin: 1rem 0;
+  padding-left: 2rem;
 }
 
-#blog-rendered-content tr:nth-child(even) {
-  background-color: #f8fafc !important;
+/* Style the Pure Preview button to indicate when it's active */
+.canva-control-btn {
+  position: relative;
 }
 
-#blog-rendered-content tr:hover {
-  background-color: #eff6ff !important;
+.canva-control-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80%;
+  height: 2px;
+  background: #4f46e5;
+  border-radius: 1px;
 }
 
-/* Blog Dividers */
-#blog-rendered-content hr {
-  border: none !important;
-  height: 2px !important;
-  background: linear-gradient(90deg, transparent, #3b82f6, transparent) !important;
-  margin: 2rem 0 !important;
+/* Enhanced Drag & Drop Improvements */
+
+/* Enhanced drag feedback for code editor */
+.monaco-editor-wrapper.drag-active {
+  border: 2px dashed #10b981 !important;
+  background: rgba(16, 185, 129, 0.05) !important;
+  transition: all 0.3s ease;
+  position: relative;
 }
 
-/* Blog Selection Styles */
-#blog-rendered-content ::selection {
-  background-color: rgba(59, 130, 246, 0.2) !important;
-  color: #1e40af !important;
+.monaco-editor-wrapper.drag-over {
+  border-color: #059669 !important;
+  background: rgba(16, 185, 129, 0.1) !important;
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
 }
 
-/* Blog Focus Styles */
-#blog-rendered-content *:focus {
-  outline: 2px solid #3b82f6 !important;
-  outline-offset: 2px !important;
-  border-radius: 4px !important;
+.code-drop-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(16, 185, 129, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  border-radius: 8px;
 }
 
-/* ========================================
-   LEGACY STYLES - Remove old korean-blog-wrapper styles
-   ======================================== */
+.monaco-editor-wrapper.drag-over .code-drop-indicator {
+  opacity: 1;
+}
 
-/* Remove the old korean-blog-wrapper styles since we're using new IDs */
+.drop-message {
+  background: rgba(16, 185, 129, 0.95);
+  color: white;
+  padding: 16px 24px;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 8px 32px rgba(16, 185, 129, 0.3);
+  backdrop-filter: blur(10px);
+}
+
+.drop-icon {
+  font-size: 1.5rem;
+  animation: bounceIcon 1s infinite;
+}
+
+@keyframes bounceIcon {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-10px);
+  }
+  60% {
+    transform: translateY(-5px);
+  }
+}
+
+/* Enhanced visual mode drag feedback */
+.canva-canvas.drag-active {
+  background: linear-gradient(45deg, rgba(16, 185, 129, 0.05) 25%, transparent 25%), 
+              linear-gradient(-45deg, rgba(16, 185, 129, 0.05) 25%, transparent 25%), 
+              linear-gradient(45deg, transparent 75%, rgba(16, 185, 129, 0.05) 75%), 
+              linear-gradient(-45deg, transparent 75%, rgba(16, 185, 129, 0.05) 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+  border: 2px dashed #10b981 !important;
+  transition: all 0.3s ease;
+}
+
+.canva-canvas.canva-drag-over {
+  border-color: #059669 !important;
+  box-shadow: inset 0 0 20px rgba(16, 185, 129, 0.2);
+  background-color: rgba(16, 185, 129, 0.05) !important;
+}
+
+/* Enhanced image styling for generated images */
+.blog-image {
+  margin: 20px 0;
+  text-align: center;
+  clear: both;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.blog-image:hover {
+  transform: translateY(-2px);
+}
+
+.blog-image img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.blog-image img:hover {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  transform: scale(1.02);
+}
+
+.blog-image figcaption {
+  margin-top: 12px;
+  color: #64748b;
+  font-size: 0.9rem;
+  font-style: italic;
+  line-height: 1.4;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Improved drag feedback for images being dragged */
+.image-item.dragging,
+.google-image-item.dragging {
+  opacity: 0.7;
+  transform: scale(0.9) rotate(5deg);
+  transition: all 0.2s ease;
+  z-index: 1000;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+/* Enhanced drop zone animations */
+@keyframes pulseDropZone {
+  0% {
+    border-color: #10b981;
+    background-color: rgba(16, 185, 129, 0.05);
+  }
+  50% {
+    border-color: #059669;
+    background-color: rgba(16, 185, 129, 0.1);
+  }
+  100% {
+    border-color: #10b981;
+    background-color: rgba(16, 185, 129, 0.05);
+  }
+}
+
+.drop-zone.active {
+  animation: pulseDropZone 1.5s ease-in-out infinite;
+}
+
+/* Success feedback for successful drops */
+@keyframes successFlash {
+  0% { background-color: rgba(16, 185, 129, 0.1); }
+  50% { background-color: rgba(16, 185, 129, 0.3); }
+  100% { background-color: transparent; }
+}
+
+.drop-success {
+  animation: successFlash 0.6s ease-out;
+}
+
+/* Enhanced cursor feedback during drag */
+body.dragging-image {
+  cursor: grabbing !important;
+}
+
+body.dragging-image * {
+  cursor: grabbing !important;
+}
+
+/* Drop zone hover states */
+.monaco-editor-wrapper:not(.drag-over):hover {
+  border-color: #d1d5db;
+  transition: border-color 0.2s ease;
+}
+
+.canva-canvas:not(.canva-drag-over):hover {
+  border-color: #d1d5db;
+  transition: border-color 0.2s ease;
+}
