@@ -126,48 +126,55 @@ const ProfilePage = ({ onBack, onNavigate, onEditBlog, savedBlogs, onLoadSavedBl
       </div>
 
       <div className="profile-content">
-        {/* User Info Card */}
-        <div className="user-info-card">
-          <div className="user-avatar">
-            {currentUser.username ? currentUser.username.charAt(0).toUpperCase() : '👤'}
+        {/* Sidebar (Left Column) */}
+        <div className="profile-sidebar">
+          {/* User Info Card */}
+          <div className="user-info-card">
+            <div className="user-avatar">
+              <div>
+                {currentUser.username ? currentUser.username.charAt(0).toUpperCase() : '👤'}
+              </div>
+            </div>
+            <div className="user-details">
+              <h2>{currentUser.username || 'User'}</h2>
+              <p className="user-email">{currentUser.email || 'No email provided'}</p>
+              <p className="user-joined">
+                Member since {currentUser.created_at ? formatDate(currentUser.created_at) : 'Unknown'}
+              </p>
+            </div>
           </div>
-          <div className="user-details">
-            <h2>{currentUser.username || 'User'}</h2>
-            <p className="user-email">{currentUser.email || 'No email provided'}</p>
-            <p className="user-joined">
-              Member since {currentUser.created_at ? formatDate(currentUser.created_at) : 'Unknown'}
-            </p>
+
+          {/* Blog Statistics */}
+          <div className="stats-section">
+            <h3>📊 Blog Statistics</h3>
+            <div className="stats-grid">
+              <div className="stat-card">
+                <div className="stat-number">{blogStats.totalBlogs}</div>
+                <div className="stat-label">Total Blogs</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-number">{blogStats.totalWords.toLocaleString()}</div>
+                <div className="stat-label">Total Words</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-number">{blogStats.avgWordsPerBlog}</div>
+                <div className="stat-label">Avg Words/Blog</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-topic">{blogStats.mostUsedTopic}</div>
+                <div className="stat-label">Most Used Topic</div>
+              </div>
+            </div>
+            <div className="recent-activity">
+              <p>{blogStats.recentActivity}</p>
+            </div>
           </div>
         </div>
 
-        {/* Blog Statistics */}
-        <div className="stats-section">
-          <h3>📊 Blog Statistics</h3>
-          <div className="stats-grid">
-            <div className="stat-card">
-              <div className="stat-number">{blogStats.totalBlogs}</div>
-              <div className="stat-label">Total Blogs</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-number">{blogStats.totalWords.toLocaleString()}</div>
-              <div className="stat-label">Total Words</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-number">{blogStats.avgWordsPerBlog}</div>
-              <div className="stat-label">Avg Words/Blog</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-topic">{blogStats.mostUsedTopic}</div>
-              <div className="stat-label">Most Used Topic</div>
-            </div>
-          </div>
-          <div className="recent-activity">
-            <p>{blogStats.recentActivity}</p>
-          </div>
-        </div>
-
-        {/* Saved Blogs Section */}
-        <div className="saved-blogs-section">
+        {/* Main Content (Right Column) */}
+        <div className="profile-main">
+          {/* Saved Blogs Section */}
+          <div className="saved-blogs-section">
           <div className="section-header">
             <h3>📝 Saved Blogs</h3>
             <button 
@@ -228,71 +235,72 @@ const ProfilePage = ({ onBack, onNavigate, onEditBlog, savedBlogs, onLoadSavedBl
           )}
         </div>
 
-        {/* Marketing Insights */}
-        <div className="marketing-section">
-          <h3>📈 Marketing Insights</h3>
-          <div className="insights-grid">
-            <div className="insight-card">
-              <h4>Content Performance</h4>
-              <p>Your blogs average {blogStats.avgWordsPerBlog} words, which is {blogStats.avgWordsPerBlog > 1000 ? 'excellent for SEO' : 'good for quick reads'}.</p>
-            </div>
-            <div className="insight-card">
-              <h4>Topic Focus</h4>
-              <p>You write most about "{blogStats.mostUsedTopic}". Consider diversifying topics to reach broader audiences.</p>
-            </div>
-            <div className="insight-card">
-              <h4>Publishing Consistency</h4>
-              <p>{blogStats.totalBlogs > 5 ? 'Great job staying consistent!' : 'Try to publish more regularly for better engagement.'}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* SEO Tips */}
-        <div className="seo-section">
-          <h3>🔍 SEO Tips</h3>
-          <div className="seo-tips">
-            <div className="tip">
-              <span className="tip-icon">💡</span>
-              <p>Aim for 1,500-2,500 words per blog post for better search rankings.</p>
-            </div>
-            <div className="tip">
-              <span className="tip-icon">🎯</span>
-              <p>Use your main keyword in the title, first paragraph, and conclusion.</p>
-            </div>
-            <div className="tip">
-              <span className="tip-icon">🔗</span>
-              <p>Include internal links to your other blog posts to improve site navigation.</p>
-            </div>
-            <div className="tip">
-              <span className="tip-icon">📱</span>
-              <p>Ensure your content is mobile-friendly and loads quickly.</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Future Features Preview */}
-        <div className="future-features">
-          <h3>🚀 Coming Soon</h3>
-          <div className="feature-preview">
-            <div className="feature-item">
-              <span className="feature-icon">📊</span>
-              <div>
-                <h4>Advanced Analytics</h4>
-                <p>Track views, engagement, and performance metrics</p>
+          {/* Marketing Insights */}
+          <div className="marketing-section">
+            <h3>📈 Marketing Insights</h3>
+            <div className="insights-grid">
+              <div className="insight-card">
+                <h4>Content Performance</h4>
+                <p>Your blogs average {blogStats.avgWordsPerBlog} words, which is {blogStats.avgWordsPerBlog > 1000 ? 'excellent for SEO' : 'good for quick reads'}.</p>
+              </div>
+              <div className="insight-card">
+                <h4>Topic Focus</h4>
+                <p>You write most about "{blogStats.mostUsedTopic}". Consider diversifying topics to reach broader audiences.</p>
+              </div>
+              <div className="insight-card">
+                <h4>Publishing Consistency</h4>
+                <p>{blogStats.totalBlogs > 5 ? 'Great job staying consistent!' : 'Try to publish more regularly for better engagement.'}</p>
               </div>
             </div>
-            <div className="feature-item">
-              <span className="feature-icon">🤝</span>
-              <div>
-                <h4>Collaboration Tools</h4>
-                <p>Share and collaborate on blog posts with team members</p>
+          </div>
+
+          {/* SEO Tips */}
+          <div className="seo-section">
+            <h3>🔍 SEO Tips</h3>
+            <div className="seo-tips">
+              <div className="tip">
+                <span className="tip-icon">💡</span>
+                <p>Aim for 1,500-2,500 words per blog post for better search rankings.</p>
+              </div>
+              <div className="tip">
+                <span className="tip-icon">🎯</span>
+                <p>Use your main keyword in the title, first paragraph, and conclusion.</p>
+              </div>
+              <div className="tip">
+                <span className="tip-icon">🔗</span>
+                <p>Include internal links to your other blog posts to improve site navigation.</p>
+              </div>
+              <div className="tip">
+                <span className="tip-icon">📱</span>
+                <p>Ensure your content is mobile-friendly and loads quickly.</p>
               </div>
             </div>
-            <div className="feature-item">
-              <span className="feature-icon">🎨</span>
-              <div>
-                <h4>Custom Templates</h4>
-                <p>Create and save your own blog post templates</p>
+          </div>
+
+          {/* Future Features Preview */}
+          <div className="future-features">
+            <h3>🚀 Coming Soon</h3>
+            <div className="feature-preview">
+              <div className="feature-item">
+                <span className="feature-icon">📊</span>
+                <div>
+                  <h4>Advanced Analytics</h4>
+                  <p>Track views, engagement, and performance metrics</p>
+                </div>
+              </div>
+              <div className="feature-item">
+                <span className="feature-icon">🤝</span>
+                <div>
+                  <h4>Collaboration Tools</h4>
+                  <p>Share and collaborate on blog posts with team members</p>
+                </div>
+              </div>
+              <div className="feature-item">
+                <span className="feature-icon">🎨</span>
+                <div>
+                  <h4>Custom Templates</h4>
+                  <p>Create and save your own blog post templates</p>
+                </div>
               </div>
             </div>
           </div>
