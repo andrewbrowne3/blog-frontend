@@ -18,6 +18,7 @@ import './App.css';
 import './Navigation.css';
 import './ProfilePage.css';
 import './CanvaEditor.css';
+import './BlogGenerator.css';
 import LandingPage from './LandingPage';
 import LoginPage from './LoginPage';
 import ProfilePage from './ProfilePage';
